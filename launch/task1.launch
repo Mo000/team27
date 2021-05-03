@@ -1,0 +1,4 @@
+<launch>
+   <node pkg="team27" type="obst_avoidance.py" name="obstacleAvoidance"  output="screen">
+   </node>
+ </launch>
