@@ -69,19 +69,25 @@ class obstacleAvoidance(object):
         #print(self.lidar["closest"])
         fwd_vel = 0.2
         ang_vel = 0.0
-        kp = 0.25
-        if self.lidar["closest"] < (3*pi/4):
-            y_error = (3*pi/4) - self.lidar["closest"]
-            ang_vel = kp * y_error
+        kp = 0.01
+        min_ang = 55
+        max_ang = 305
+        print(self.lidar["closest angle"])
+        if self.lidar["closest angle"] < min_ang and self.lidar["closest angle"] >= 0:
+            y_error = min_ang - self.lidar["closest"]
+            ang_vel = -(kp * y_error)
             print("turning right")
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
-        if self.lidar["closest"] > (pi/4):
-            y_error = (pi/4) - self.lidar["closest"]
-            ang_vel = kp * y_error
+            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #self.robot_controller.publish()
+        if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > max_ang:
+            y_error = max_ang - self.lidar["closest"]
+            ang_vel = (kp * y_error)
             print("turning left")
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
+            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #self.robot_controller.publish()
+
+        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+        self.robot_controller.publish()
 
     def main(self):
         while not self.ctrl_c:
