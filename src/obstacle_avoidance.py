@@ -61,9 +61,6 @@ class obstacle_avoidance(object):
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.5:
                    self.robot_controller.set_move_cmd(linear = 0.2)
 
-                if self.lidar['closest angle'] >= 90:
-                   self.robot_controller.set_move_cmd(linear = 0.26)
-
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] < 0.5:
                    self.robot_controller.set_move_cmd(linear = 0.1)
                 
