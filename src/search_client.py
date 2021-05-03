@@ -7,7 +7,7 @@ import time
 from com2009_actions.msg import SearchAction, SearchGoal
 
 class search_client:
-   
+
     def feedback_callback(self, feedback_data):
         self.distance_travelled = feedback_data.current_distance_travelled
         print('FEEDBACK: current distance travelled: {:.2f} m'.format(self.distance_travelled))
@@ -15,14 +15,14 @@ class search_client:
     def __init__(self):
         self.action_complete = False
         self.distance_travelled = 0.0
-        
+
         rospy.init_node('search_action_client')
 
         self.rate = rospy.Rate(10)
 
         self.goal = SearchGoal()
 
-        self.client = actionlib.SimpleActionClient('/search_action_server', 
+        self.client = actionlib.SimpleActionClient('/search_action_server',
                                                    SearchAction)
         self.client.wait_for_server()
 
@@ -33,7 +33,7 @@ class search_client:
             rospy.logwarn("Received a shutdown request. Cancelling Goal...")
             self.client.cancel_goal()
             rospy.logwarn("Goal Cancelled")
-            
+
 
     def print_result(self):
 
@@ -44,7 +44,7 @@ class search_client:
     def send_goal(self, velocity, distance):
         self.goal.fwd_velocity = velocity
         self.goal.approach_distance = distance
-        
+
         # send the goal to the action server:
         self.client.send_goal(self.goal, feedback_cb=self.feedback_callback)
 
@@ -53,6 +53,16 @@ class search_client:
 
         while self.client.get_state() < 2:
             print("STATE: Current state code is {}".format(self.client.get_state()))
+<<<<<<< HEAD
+=======
+
+            # Stop if travelled 2m
+            #if self.distance_travelled >= 2:
+             #   self.client.cancel_goal()
+              #  rospy.logwarn("Cancelling after moving 2 m without collision")
+
+
+>>>>>>> 8ffdc69f822c8f03ba1103d29e54bde2d8046d25
             self.rate.sleep()
 
         self.action_complete = True
