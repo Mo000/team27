@@ -7,7 +7,7 @@ from move_tb3 import MoveTB3
 from tb3_odometry import TB3Odometry
 
 # Import some other useful Python Modules
-from math import radians
+from math import radians, pi
 import datetime as dt
 import os
 import numpy as np
@@ -60,23 +60,28 @@ class obstacleAvoidance(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
-        #self.robot_controller.set_move_cmd(0.26, 0.0)
-
-        speed = min(0.26, 0.26/(1/self.lidar['range']))
-        rotation = ((self.lidar['range left'] - self.lidar['range right'])**0)*(2.84-(speed*(2.84/0.26)))
-        print(speed)
-        print(rotation)
-        self.robot_controller.set_move_cmd(linear = speed)
-        self.robot_controller.set_move_cmd(angular = rotation)
-
-        #y_error = cy - (width / 2)
-        #kp = 1.0 / 50.0
-        #fwd_vel = 0.5
-        #ang_vel = kp * y_error
-
-        #print("Y-error = {:.3f} pixels, ang_vel = {:.3f} rad/s".format(y_error, ang_vel))
-        #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-        self.robot_controller.publish()
+        #speed = min(0.26, 0.26/(1/self.lidar['range']))
+        #rotation = ((self.lidar['range left'] - self.lidar['range right'])**0)*(2.84-(speed*(2.84/0.26)))
+        #print(speed)
+        #print(rotation)
+        #self.robot_controller.set_move_cmd(linear = speed)
+        #self.robot_controller.set_move_cmd(angular = rotation)
+        #print(self.lidar["closest"])
+        fwd_vel = 0.2
+        ang_vel = 0.0
+        kp = 0.25
+        if self.lidar["closest"] < (3*pi/4):
+            y_error = (3*pi/4) - self.lidar["closest"]
+            ang_vel = kp * y_error
+            print("turning right")
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
+        if self.lidar["closest"] > (pi/4):
+            y_error = (pi/4) - self.lidar["closest"]
+            ang_vel = kp * y_error
+            print("turning left")
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
 
     def main(self):
         while not self.ctrl_c:
