@@ -102,9 +102,12 @@ class SearchAS(object):
             if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
                self.robot_controller.set_move_cmd(angular = -0.5)
 
-            if self.lidar['closest angle'] >= 90:
-               self.robot_controller.set_move_cmd(linear = 0.1)
+            if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.5:
+               self.robot_controller.set_move_cmd(linear = 0.2)
 
+            if self.lidar['closest angle'] >= 90 and self.lidar['closest'] < 0.5:
+               self.robot_controller.set_move_cmd(linear = 0.1)
+            
             if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
                self.robot_controller.set_move_cmd(linear = 0.0)
             

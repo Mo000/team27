@@ -2,6 +2,7 @@
 
 import rospy
 import actionlib
+import time
 
 from com2009_actions.msg import SearchAction, SearchGoal
 
@@ -52,13 +53,6 @@ class search_client:
 
         while self.client.get_state() < 2:
             print("STATE: Current state code is {}".format(self.client.get_state()))
-            
-            # Stop if travelled 2m
-            #if self.distance_travelled >= 2:
-             #   self.client.cancel_goal()
-              #  rospy.logwarn("Cancelling after moving 2 m without collision")
-            
-            
             self.rate.sleep()
 
         self.action_complete = True
