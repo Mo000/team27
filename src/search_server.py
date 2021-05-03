@@ -19,12 +19,12 @@ import os
 import numpy as np
 
 class SearchAS(object):
-    feedback = SearchFeedback() 
+    feedback = SearchFeedback()
     result = SearchResult()
 
     def __init__(self):
         # Initialise action server
-        self.actionserver = actionlib.SimpleActionServer("/search_action_server", 
+        self.actionserver = actionlib.SimpleActionServer("/search_action_server",
             SearchAction, self.action_server_launcher, auto_start=False)
         self.actionserver.start()
 
@@ -37,7 +37,7 @@ class SearchAS(object):
         # Robot movement and odometry
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
-    
+
     def callback_lidar(self, lidar_data):
         """Returns arrays of lidar data"""
 
@@ -53,7 +53,7 @@ class SearchAS(object):
 
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
-    
+
     def action_server_launcher(self, goal):
         r = rospy.Rate(10)
 
@@ -75,7 +75,7 @@ class SearchAS(object):
 
         # set the robot velocity:
         self.robot_controller.set_move_cmd(linear=goal.fwd_velocity)
-        
+
         # Get the current robot odometry
         ref_x = self.robot_odom.posx
         start_x = self.robot_odom.posx
@@ -98,22 +98,18 @@ class SearchAS(object):
 
             if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
                self.robot_controller.set_move_cmd(linear = 0.0)
-            
-            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
                self.robot_controller.set_move_cmd(angular = -0.5)
 
             if self.lidar['closest angle'] >= 90:
-               self.robot_controller.set_move_cmd(linear = 0.1)
+               self.robot_controller.set_move_cmd(linear = 0.26)
 
             if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
                self.robot_controller.set_move_cmd(linear = 0.0)
-            
-            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
-             self.robot_controller.set_move_cmd(angular = 0.5)
-            
+               self.robot_controller.set_move_cmd(angular = 0.5)
+
             # Calculate distance travelled
             distance_travelled = np.sqrt(pow(start_x-ref_x, 2) + pow(start_y-ref_y, 2))
-                
+
             # populate the feedback message and publish it:
             rospy.loginfo('Current distance to object: {:.2f} m'.format(self.lidar['range']))
             self.feedback.current_distance_travelled = distance_travelled
@@ -132,7 +128,7 @@ class SearchAS(object):
             self.actionserver.set_succeeded(self.result)
             self.robot_controller.stop()
             self.robot_controller.set_move_cmd(linear=goal.fwd_velocity)
-            
+
 if __name__ == '__main__':
     rospy.init_node('search_server')
     SearchAS()
