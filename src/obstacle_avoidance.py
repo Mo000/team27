@@ -19,6 +19,7 @@ class obstacle_avoidance(object):
     def __init__(self):
         rospy.init_node('turn_and_face')
         self.ctrl_c = False
+        self.rate = rospy.Rate(5)
         rospy.on_shutdown(self.shutdown_ops)
         self.lidar_subscriber = rospy.Subscriber('/scan', LaserScan, self.callback_lidar)
         self.lidar = {'range': 0.0,
@@ -55,18 +56,23 @@ class obstacle_avoidance(object):
                 self.robot_controller.publish()
 
                 if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
-                   self.robot_controller.set_move_cmd(linear = 0.0)
-                   self.robot_controller.set_move_cmd(angular = -0.5)
+                   self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.5)
+                   print("turning right")
 
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.5:
                    self.robot_controller.set_move_cmd(linear = 0.2)
+                   print("moving quickly")
 
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] < 0.5:
                    self.robot_controller.set_move_cmd(linear = 0.1)
+                   print("moving slowly")
                 
                 if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
-                   self.robot_controller.set_move_cmd(linear = 0.0)
-                   self.robot_controller.set_move_cmd(angular = 0.5)
+                   self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.5 )
+                   print("turning left")
+
+            self.rate.sleep()
+
             
 if __name__ == '__main__':
     search_ob = obstacle_avoidance()
