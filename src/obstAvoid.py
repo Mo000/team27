@@ -61,13 +61,6 @@ class obstacleAvoidance(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
-        #speed = min(0.26, 0.26/(1/self.lidar['range']))
-        #rotation = ((self.lidar['range left'] - self.lidar['range right'])**0)*(2.84-(speed*(2.84/0.26)))
-        #print(speed)
-        #print(rotation)
-        #self.robot_controller.set_move_cmd(linear = speed)
-        #self.robot_controller.set_move_cmd(angular = rotation)
-        #print(self.lidar["closest"])
         fwd_vel = 0.2
         ang_vel = 0.0
         kp = 0.01
@@ -75,19 +68,19 @@ class obstacleAvoidance(object):
         max_ang = 305
         print(self.lidar["closest angle"])
         print(self.lidar["closest"])
+
+        # robot rotation when blobs detected:
         if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.4:
             y_error = 45 - self.lidar["closest"]
             ang_vel = -(kp * y_error)
             print("turning right")
-            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #self.robot_controller.publish()
+
         if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.4:
             y_error = 315 - self.lidar["closest"]
             ang_vel = (kp * y_error)
             print("turning left")
-            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #self.robot_controller.publish()
 
+        # robot rotation when in a tight space:
         if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
             ang_vel = -0.5
             fwd_vel = 0.0
@@ -98,6 +91,7 @@ class obstacleAvoidance(object):
             fwd_vel = 0.0
             print("turning left")
         
+        # robot motion:
         if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] > 270:
             fwd_vel = 0.1
             print('slowing down')
