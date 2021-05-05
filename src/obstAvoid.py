@@ -26,6 +26,9 @@ class obstacleAvoidance(object):
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
 
+        fwd_vel = 0.2
+        ang_vel = 0.0
+
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
 
@@ -35,10 +38,6 @@ class obstacleAvoidance(object):
         self.ctrl_c = True
 
     def callback_lidar(self, lidar_data):
-        #try:
-        #    cv_img = self.cvbridge_interface.imgmsg_to_cv2(img_data, desired_encoding="bgr8")
-        #except CvBridgeError as e:
-        #    print(e)
 
         raw_data = np.array(lidar_data.ranges)
 
@@ -60,31 +59,27 @@ class obstacleAvoidance(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
-        #speed = min(0.26, 0.26/(1/self.lidar['range']))
-        #rotation = ((self.lidar['range left'] - self.lidar['range right'])**0)*(2.84-(speed*(2.84/0.26)))
-        #print(speed)
-        #print(rotation)
-        #self.robot_controller.set_move_cmd(linear = speed)
-        #self.robot_controller.set_move_cmd(angular = rotation)
-        #print(self.lidar["closest"])
-        fwd_vel = 0.2
-        ang_vel = 0.0
-        kp = 0.01
+        kp = 0.04
         min_ang = 55
         max_ang = 305
         print(self.lidar["closest angle"])
-        if self.lidar["closest angle"] < min_ang and self.lidar["closest angle"] >= 0:
-            y_error = min_ang - self.lidar["closest"]
-            ang_vel = -(kp * y_error)
-            print("turning right")
-            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #self.robot_controller.publish()
-        if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > max_ang:
-            y_error = max_ang - self.lidar["closest"]
-            ang_vel = (kp * y_error)
-            print("turning left")
-            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #self.robot_controller.publish()
+        if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
+           fwd_vel = 0.0
+           ang_vel = -0.5
+        elif self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
+           fwd_vel= 0.0
+           ang_vel = 0.5
+        else:
+            fwd_vel = 0.2
+            ang_vel = 0.0
+            if self.lidar["closest angle"] < min_ang and self.lidar["closest angle"] >= 0:
+                y_error = 0 - self.lidar["closest angle"]
+                ang_vel = (kp * y_error)
+                print("turning right")
+            if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > max_ang:
+                y_error = 360 - self.lidar["closest angle"]
+                ang_vel = (kp * y_error)
+                print("turning left")
 
         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
         self.robot_controller.publish()
