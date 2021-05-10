@@ -36,7 +36,6 @@ class objectDetection(object):
         self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
 
         self.move_rate = '' # fast, slow or stop
-        self.stop_counter = 0
 
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
@@ -46,9 +45,12 @@ class objectDetection(object):
         self.m00 = 0
         self.m00_min = 100000
 
+        self.colour = 0
+
         self.lower = [(115, 224, 100), (0, 185, 100), (25, 150, 100), (75, 150, 100), (145, 220, 100),(27, 200,255)]
         self.upper = [(130, 255, 255), (10, 255, 255), (70, 255, 255), (100, 255, 255), (155, 250, 255),(33, 255,255)]
-
+        self.masks = [0 for x in range(6)]
+        self.colours = ['Blue','Red','Green','Turquoise','Purple','Yellow']
         self.robot_odom = TB3Odometry()
         self.save_image = TB3Detection()
         self.init = True
@@ -78,17 +80,11 @@ class objectDetection(object):
         crop_img = cv_img[crop_y:crop_y+crop_height, crop_x:crop_x+crop_width]
         global hsv_img
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
-        global colours
-        colours = ['Blue','Red','Green','Turquoise','Purple','Yellow']
-        global colour
-        colour = 0
-        # Populate masks array with masks for each colour
-        global masks
-        masks = [0 for x in range(6)]
-        for i in range(len(colours)):
-            masks[i] = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
 
-        m = cv2.moments(masks[colour])
+        # Populate masks array with masks for each colour
+        for i in range(len(self.colours)):
+            self.masks[i] = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
+        m = cv2.moments(self.masks[self.colour])
 
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
@@ -121,17 +117,15 @@ class objectDetection(object):
                 self.rate.sleep()
                 self.save_image.show_and_save_image(crop_img, img_name = "current_image")
                 saved_current_image = self.save_image.read_image("current_image")
-                for i in range(len(masks)):
-                    filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask = masks[i])
-                    self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_{0}".format(colours[i]))
-                    saved_filtered_image = self.save_image.read_image("filtered_image_{0}".format(colours[i]))
+                for i in range(len(self.masks)):
+                    filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask = self.masks[i])
+                    self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_{0}".format(self.colours[i]))
+                    saved_filtered_image = self.save_image.read_image("filtered_image_{0}".format(self.colours[i]))
                     difference = cv2.subtract(saved_filtered_image, saved_current_image)
                     h, s, v = cv2.split(difference)
                     if not (cv2.countNonZero(h) == 0 and cv2.countNonZero(s) == 0):
-                        print("SEARCH INITIATED: The target colour is {0}".format(colours[i]))
-                        global img_mask
-                        img_mask = masks[i]
-                        colour = i
+                        print("SEARCH INITIATED: The target colour is {0}".format(self.colours[i]))
+                        self.colour = i
                         stage = 3
             #Turn back to starting rotation
             while stage == 3:
@@ -158,20 +152,14 @@ class objectDetection(object):
             #Turn 90 degrees left while searching
             while stage == 5:
                 self.rate.sleep()
-            #Turn 90 degrees right while searching
-            while stage == 6:
-                self.rate.sleep()
-            #Sample searching code
-            while stage == 10:
-                if self.stop_counter > 0:
-                    self.stop_counter -= 1
-
+                currentRotation = self.robot_odom.yaw + 180
+                targetRotation = (startRotation + 95) % 360
+                if not (currentRotation - targetRotation >= 0 and currentRotation - targetRotation < 10):
                     if self.m00 > self.m00_min:
                         # blob detected
                         if self.cy >= 560-100 and self.cy <= 560+100:
                             if self.move_rate == 'slow':
                                 self.move_rate = 'stop'
-                                self.stop_counter = 100
                         else:
                             self.move_rate = 'slow'
                     else:
@@ -183,15 +171,81 @@ class objectDetection(object):
                     elif self.move_rate == 'slow':
                         print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
                         self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
-                    elif self.move_rate == 'stop' and self.stop_counter > 0:
-                        print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels... Counting down: {}".format(self.cy, self.stop_counter))
-                        self.robot_controller.set_move_cmd(0.0, 0.0)
+                    elif self.move_rate == 'stop':
+                        print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels.".format(self.cy))
+                        self.robot_controller.stop()
+                        stage = 8
                     else:
                         print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
                         self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                else:
+                    self.robot_controller.stop()
+                    stage = 6
+                self.robot_controller.publish()
+            #Turn 90 degrees right while searching
+            while stage == 6:
+                self.rate.sleep()
+                currentRotation = self.robot_odom.yaw + 180
+                targetRotation = (startRotation - 95) % 360
+                if not (currentRotation - targetRotation <= 0 and currentRotation - targetRotation > 10):
+                    if self.m00 > self.m00_min:
+                        # blob detected
+                        if self.cy >= 560-100 and self.cy <= 560+100:
+                            if self.move_rate == 'slow':
+                                self.move_rate = 'stop'
+                        else:
+                            self.move_rate = 'slow'
+                    else:
+                        self.move_rate = 'fast'
 
-                    self.robot_controller.publish()
-                    self.rate.sleep()
+                    if self.move_rate == 'fast':
+                        print("MOVING FAST: I can't see anything at the moment (blob size = {:.0f}), scanning the area...".format(self.m00))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast * -1)
+                    elif self.move_rate == 'slow':
+                        print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow * -1)
+                    elif self.move_rate == 'stop':
+                        print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels.".format(self.cy))
+                        self.robot_controller.stop()
+                        stage = 8
+                    else:
+                        print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow * -1)
+                else:
+                    self.robot_controller.stop()
+                    stage = 7
+                self.robot_controller.publish()
+            while stage == 8:
+                self.robot_controller.stop()
+                print("SEARCH COMPLETE: The robot is now facing the target pillar")
+                self.robot_controller.publish()
+            #Sample searching code
+            while stage == 10:
+                self.rate.sleep()
+                if self.m00 > self.m00_min:
+                    # blob detected
+                    if self.cy >= 560-100 and self.cy <= 560+100:
+                        if self.move_rate == 'slow':
+                            self.move_rate = 'stop'
+                    else:
+                        self.move_rate = 'slow'
+                else:
+                    self.move_rate = 'fast'
+
+                if self.move_rate == 'fast':
+                    print("MOVING FAST: I can't see anything at the moment (blob size = {:.0f}), scanning the area...".format(self.m00))
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+                elif self.move_rate == 'slow':
+                    print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                elif self.move_rate == 'stop':
+                    print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels.}".format(self.cy))
+                    self.robot_controller.set_move_cmd(0.0, 0.0)
+                else:
+                    print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                    self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+
+                self.robot_controller.publish()
 
 if __name__ == '__main__':
     lf_object = objectDetection()
