@@ -65,9 +65,13 @@ class obstacle_avoidance(object):
         while not self.ctrl_c:
             self.robot_controller.publish()
 
-            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
+            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 95:
                self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.5)
                print("turning right")
+
+            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 5:
+               self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.5)
+               print("stopping robot")
 
             if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.42:
                self.robot_controller.set_move_cmd(linear = 0.2)
