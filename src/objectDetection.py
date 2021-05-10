@@ -216,9 +216,10 @@ class objectDetection(object):
                     stage = 7
                 self.robot_controller.publish()
             while stage == 8:
+                self.rate.sleep()
                 self.robot_controller.stop()
-                print("SEARCH COMPLETE: The robot is now facing the target pillar")
                 self.robot_controller.publish()
+                print("SEARCH COMPLETE: The robot is now facing the target pillar")
             #Sample searching code
             while stage == 10:
                 self.rate.sleep()
