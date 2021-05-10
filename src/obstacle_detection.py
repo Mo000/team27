@@ -21,8 +21,6 @@ import time
 
 class colour_search(object):
     cvbridge_interface = CvBridge()
-    global waiting_for_image
-    waiting_for_image = True
 
     def __init__(self):
         rospy.init_node('turn_and_face')
@@ -64,14 +62,6 @@ class colour_search(object):
         cv2.destroyAllWindows()
         self.ctrl_c = True
         rospy.logwarn("Robot stopped")
-
-    def save_image(img, img_name):
-        base_image_path = "./images/"
-        full_image_path = os.path.join(base_image_path, "{}.jpg".format(img_name))
-
-        cv2.imwrite(full_image_path, img)
-        print("Saved an image to '{}'\nimage dims = {}x{}px\nfile size = {} bytes".format(full_image_path, 
-                img.shape[0], img.shape[1], os.path.getsize(full_image_path)))
     
     def camera_callback(self, img_data):
         try:
