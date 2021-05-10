@@ -80,14 +80,15 @@ class objectDetection(object):
         hsv_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2HSV)
         global colours
         colours = ['Blue','Red','Green','Turquoise','Purple','Yellow']
-
+        global colour
+        colour = 0
         # Populate masks array with masks for each colour
         global masks
-        masks = []
+        masks = [0 for x in range(6)]
         for i in range(len(colours)):
             masks[i] = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
 
-        m = cv2.moments(mask_red)
+        m = cv2.moments(masks[colour])
 
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
@@ -130,6 +131,7 @@ class objectDetection(object):
                         print("SEARCH INITIATED: The target colour is {0}".format(colours[i]))
                         global img_mask
                         img_mask = masks[i]
+                        colour = i
                         stage = 3
             #Turn back to starting rotation
             while stage == 3:
