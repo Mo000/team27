@@ -85,10 +85,10 @@ class objectDetection(object):
                 self.rate.sleep()
                 self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
 
-                if (self.robot_odom.start_yaw < 0):
-                    if (self.robot_odom.start_yaw )
-
-                if (self.robot_odom.yaw >= self.robot_odom.start_yaw + 180 or self.robot_odom.yaw >= self.robot_odom.start_yaw - 180):
+                startPosition = self.robot_odom.start_yaw + 180
+                turnPosition = (startPosition + 180) % 360
+                currentPosition = (self.robot_odom.yaw + 180) % 360
+                if (currentPosition - turnPosition > 0 and currentPosition - turnPosition < 10):
                     self.robot_controller.set_move_cmd(0.0, 0.0)
                 self.robot_controller.publish()
             while step3:
