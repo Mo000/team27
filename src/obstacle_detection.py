@@ -85,11 +85,12 @@ class colour_search(object):
 
         global i
         i = 1
-        global img_mask
         global mask_blue
         global mask_red
         global mask_green
-        img_mask = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
+        global mask_yellow
+        global mask_turquoise
+        global mask_purple
         mask_red = cv2.inRange(crop_img, (0, 185, 100), (10, 255, 255))
         mask_blue = cv2.inRange(crop_img, (115, 224, 100), (130, 255, 255))
         mask_green =  cv2.inRange(crop_img, (25, 150, 100), (70, 255, 255))
@@ -100,7 +101,8 @@ class colour_search(object):
         global filtered_img
         filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask_red)
  
-        m = cv2.moments(img_mask)
+        global m
+        m = cv2.moments(mask_blue)
             
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
@@ -162,9 +164,6 @@ class colour_search(object):
                 global filtered_img
                 global waiting_for_image
                 global crop_img
-                global mask_blue
-                global mask_red
-                global mask_green
                # global mask_blue
                 for i in range(1):
                     self.save_image.show_and_save_image(crop_img, img_name = "current_image")
@@ -175,6 +174,7 @@ class colour_search(object):
                      #   waiting_for_image = False
                     if i == 0:
                         filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask = mask_blue)
+                        m = cv2.moments(mask_blue)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_b")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_b.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
@@ -184,6 +184,7 @@ class colour_search(object):
                             stage = 3
                     if i == 1:
                         filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask = mask_red)
+                        m = cv2.moments(mask_red)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_r")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_r.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
@@ -193,6 +194,7 @@ class colour_search(object):
                             stage = 3
                     if i == 2:
                         filtered_img = cv2.bitwise_and(hsv_img, hsv_img, mask = mask_green)
+                        m = cv2.moments(mask_green)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_g")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_g.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
@@ -202,6 +204,7 @@ class colour_search(object):
                             stage = 3
                     if i == 3:
                         img_mask = cv2.inRange(crop_img, (75, 150, 100), (100, 255, 255))
+                        m = cv2.moments(mask_turquoise)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_t")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_t.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
@@ -211,6 +214,7 @@ class colour_search(object):
                             stage = 3
                     if i == 4:
                         img_mask = cv2.inRange(crop_img, (145, 220, 100), (155, 250, 255))
+                        m = cv2.moments(mask_purple)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_p")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_p.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
@@ -220,6 +224,7 @@ class colour_search(object):
                             stage = 3
                     if i == 5:
                         img_mask = cv2.inRange(crop_img, (27, 200,255), (33, 255,255))
+                        m = cv2.moments(mask_yellow)
                         self.save_image.show_and_save_image(filtered_img, img_name = "filtered_image_y")
                         saved_filtered_image = cv2.imread("/home/student/filtered_image_y.jpg")
                         difference = cv2.subtract(saved_filtered_image, saved_current_image)
