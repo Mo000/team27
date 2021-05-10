@@ -24,6 +24,12 @@ class TB3Detection(object):
        # print("Saved an image to '{}'\nimage dims = {}x{}px\nfile size = {} bytes".format(full_image_path,
         #        img.shape[0], img.shape[1], os.path.getsize(full_image_path)))
 
+    def read_image(self, img_name):
+        base_image_path = os.getcwd()
+        full_image_path = os.path.join(base_image_path, "{}.jpg".format(img_name))
+
+        return cv2.imread(full_image_path)
+
     def shutdown_ops(self):
         rospy.logwarn("Received a shutdown request. Stopping robot...")
         self.robot_controller.stop()

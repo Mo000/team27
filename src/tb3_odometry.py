@@ -13,6 +13,8 @@ class TB3Odometry(object):
         if self.startup:
             self.startup = False
             self.start_yaw = self.round(degrees(yaw), 4)
+            self.start_posx = self.round(position.x, 4)
+            self.start_posy = self.round(position.y, 4)
         self.yaw = self.round(degrees(yaw), 4)
         self.posx = self.round(position.x, 4)
         self.posy = self.round(position.y, 4)
