@@ -21,10 +21,10 @@ class mazeNav(object):
 
         self.lidar_subscriber = rospy.Subscriber('/scan', LaserScan, self.callback_lidar)
         self.lidar = {'range': 0.0,
-                      'closest': 0.0,
-                      'closest angle': 0,
                       'range left': 0,
-                      'range right': 0}
+                      'range right': 0,
+                      'turn range l': 0,
+                      'turn range r': 0}
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
 
@@ -49,49 +49,75 @@ class mazeNav(object):
                                min(raw_data[-angle_tolerance:]))
 
         # 45 to 135 - to the left but not behind or infront
-        self.lidar['range left'] = min(min(raw_data[90:100]),
-                               min(raw_data[80:90]))
+        self.lidar['range left'] = min(min(raw_data[90:95]),
+                               min(raw_data[85:90]))
 
         # -45 to -135 to the right but not behind or infront
-        self.lidar['range right'] = min(min(raw_data[260:270]),
-                               min(raw_data[270:280]))
-        # Closest object
-        self.lidar['closest'] = min(raw_data)
+        self.lidar['range right'] = min(min(raw_data[265:270]),
+                               min(raw_data[270:275]))
 
-        # Angle of closest object
-        self.lidar['closest angle']=raw_data.argmin()
+        # 45 to 135 - to the left but not behind or infront
+        self.lidar['turn range l'] = min(min(raw_data[90:135]),
+                               min(raw_data[45:90]))
+
+        # -45 to -135 to the right but not behind or infront
+        self.lidar['turn range r'] = min(min(raw_data[225:270]),
+                               min(raw_data[270:315]))
+
 
         forwardSensor = False
         rightSensor = False
         leftSensor = False
-        turningFlag = False
+        adjustedFlagR = False
+        adjustedFlagL = False
+        tJunctionFlag = 0
 
-        if self.lidar['range'] <= 0.5:
+        if self.lidar['range'] <= 0.4:
             forwardSensor = True
 
-        if self.lidar['range right'] <= 0.3:
+        if self.lidar['range right'] <= 0.4:
             rightSensor = True
-            print("I see right wall")
+            #print("I see right wall")
 
-        if self.lidar['range left'] <= 0.5:
+        if self.lidar['range left'] <= 0.6:
             leftSensor = True
-            print("I see left wall")
+            #print("I see left wall")
 
-        if forwardSensor == True and rightSensor == False and leftSensor == False:
+        if forwardSensor == True and rightSensor == False and leftSensor == False and tJunctionFlag == 1:
             fwd_vel = 0.0
-            ang_vel = 1.75 #turn left
+            ang_vel = -1.65 #turn left
+            tJunctionFlag += 1
+        elif forwardSensor == True and rightSensor == False and leftSensor == False:
+            fwd_vel = 0.0
+            ang_vel = 1.65 #turn left
+            tJunctionFlag += 1
+            print ("T junction")
+        elif adjustedFlagR == True:
+            fwd_vel = 0.24
+            ang_vel = -0.2 #turn left
+            adjustedFlagR = False
+        elif adjustedFlagL == True:
+            fwd_vel = 0.24
+            ang_vel = 0.2
+            adjustedFlagL = False
+        elif forwardSensor == True and rightSensor == False:
+            fwd_vel = 0.0
+            ang_vel = -1.65 #turn right
+            print("turn right")
         elif forwardSensor == True and rightSensor == True:
             fwd_vel = 0.0
-            ang_vel = 1.75 #turn left
-        elif forwardSensor == True and leftSensor == True:
-            fwd_vel = 0.0
-            ang_vel = -1.5 #turn right
-        #elif self.lidar['range right'] > 1:
-        #    fwd_vel = 0.2
-        #    ang_vel = -0.2
-        #    print("far away")
+            ang_vel = 1.65 #turn left
+            print("turn left")
+        elif self.lidar['turn range r'] <= 0.2:
+            fwd_vel = 0.24
+            ang_vel = 0.2
+            adjustedFlagR = True
+        elif self.lidar['turn range l'] <= 0.2:
+            fwd_vel = 0.24
+            ang_vel = -0.2
+            adjustedFlagL = True
         else:
-            fwd_vel = 0.22
+            fwd_vel = 0.24
             ang_vel = 0.0
 
         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
