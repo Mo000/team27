@@ -40,7 +40,7 @@ class objectDetection(object):
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
 
-        self.rate = rospy.Rate(1000)
+        self.rate = rospy.Rate(5)
 
         self.m00 = 0
         self.m00_min = 100000

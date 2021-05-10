@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 class MoveTB3(object):
     def __init__(self):
         self.publisher = rospy.Publisher('/cmd_vel', Twist, queue_size=1000)
-        self.publisher_rate = rospy.Rate(1000) # Hz
+        self.publisher_rate = rospy.Rate(10) # Hz
         self.vel_cmd = Twist()
 
     def set_move_cmd(self, linear = 0.0, angular = 0.0):
