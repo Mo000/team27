@@ -15,10 +15,6 @@ import numpy as np
 import time
 
 class mazeNav(object):
-
-    global tJunctionFlag
-    tJunctionFlag = 0
-
     def __init__(self):
         rospy.init_node('maze_nav', anonymous=True)
         self.rate = rospy.Rate(5)
@@ -32,8 +28,7 @@ class mazeNav(object):
         self.robot_controller = MoveTB3()
         self.robot_odom = TB3Odometry()
 
-        fwd_vel = 0.24
-        ang_vel = 0.0
+        self.tJunctionFlag = 0
 
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
@@ -81,15 +76,15 @@ class mazeNav(object):
         if self.lidar['range left'] <= 0.6:
             leftSensor = True
 
-        if forwardSensor == True and rightSensor == False and leftSensor == False and tJunctionFlag == 1:
+        if forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
             fwd_vel = 0.0
             ang_vel = -1.4 #turn right
-            tJunctionFlag = tJunctionFlag + 1
+            self.tJunctionFlag += 1
             print("2nd T junction")
         elif forwardSensor == True and rightSensor == False and leftSensor == False:
             fwd_vel = 0.0
             ang_vel = 1.4 #turn left
-            tJunctionFlag = tJunctionFlag + 1
+            self.tJunctionFlag += 1
             print ("T junction")
         elif forwardSensor == True and rightSensor == False:
             fwd_vel = 0.0
@@ -99,23 +94,23 @@ class mazeNav(object):
             fwd_vel = 0.0
             ang_vel = 1.4 #turn left
             print("turn left")
-        elif self.lidar['turn range r'] <= 0.25:
+        elif self.lidar['turn range r'] <= 0.2:
             fwd_vel = 0.0
             ang_vel = 0.2
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
-            time.sleep(0.05)
-            fwd_vel = 0.24
-            ang_vel = -0.0
+            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #self.robot_controller.publish()
+            #time.sleep(0.05)
+            #fwd_vel = 0.24
+            #ang_vel = -0.0
             print("adjusting r")
-        elif self.lidar['turn range l'] <= 0.25:
+        elif self.lidar['turn range l'] <= 0.2:
             fwd_vel = 0.0
             ang_vel = -0.2
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
-            time.sleep(0.05)
-            fwd_vel = 0.24
-            ang_vel = 0.0
+            #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #self.robot_controller.publish()
+            #time.sleep(0.05)
+            #fwd_vel = 0.24
+            #ang_vel = 0.0
             print("adjusting l")
         else:
             fwd_vel = 0.24
