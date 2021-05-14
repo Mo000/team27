@@ -97,6 +97,7 @@ class objectDetection(object):
 
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
+        cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
 
         if self.m00 > self.m00_min:
             cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
@@ -184,40 +185,91 @@ class objectDetection(object):
 
             while stage == 5:
                 self.robot_controller.publish()
+                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] < 95:
+                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.7)
 
-                if self.lidar['closest'] <= 0.5 and self.lidar['closest angle'] < 95:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.5)
-                    print("turning right")
-
-                if self.lidar['closest'] <= 0.5 and self.lidar['closest angle'] < 5:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.5)
-                    print("stopping robot")
+                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] < 5:
+                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.7)
 
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.42:
                     self.robot_controller.set_move_cmd(linear = 0.2)
-                    print("moving quickly")
-                    print(self.lidar['range'])
 
                 if self.lidar['closest angle'] >= 90 and self.lidar['closest'] < 0.42:
                     self.robot_controller.set_move_cmd(linear = 0.1)
-                    print("moving slowly")
-                    print(self.lidar['range'])
                     
-                if self.lidar['closest'] <= 0.5 and self.lidar['closest angle'] > 270:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.5 )
-                    print("turning left")
+                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] > 270:
+                    self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.7)
 
                 if self.m00 > self.m00_min:
                         # blob detected
                         if self.cy >= 560-100 and self.cy <= 560+100:
                             print("BEACON DETECTED: Beaconing initiated")
-                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.4:
+
+                        if self.cy < 560-100 and self.cy > 0 and self.lidar['closest'] > 0.3:
+                            self.robot_controller.set_move_cmd(0.1, 0.2)
+                            print("turning towards beacon")
+
+                        if self.cy > 560 + 100 and self.lidar['closest'] > 0.3:
+                            self.robot_controller.set_move_cmd(0.1, -0.2)
+                            print("turning towards beacon")
+
+                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.3:
                             self.robot_controller.stop()
-                            stage = 6
+                            stage = 7
 
                 self.rate.sleep()
-            
+
             while stage == 6:
+                fwd_vel = 0.2
+                ang_vel = 0.0
+                kp = 0.01
+                min_ang = 55
+                max_ang = 305
+
+                # robot rotation when blobs detected:
+                if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.35:
+                    y_error = 45 - self.lidar["closest"]
+                    ang_vel = -(kp * y_error)
+
+                if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.35:
+                    y_error = 315 - self.lidar["closest"]
+                    ang_vel = (kp * y_error)
+
+                # robot rotation when in a tight space:
+                if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
+                    ang_vel = -0.5
+                    fwd_vel = 0.0
+
+                if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
+                    ang_vel = 0.5
+                    fwd_vel = 0.0
+
+                if self.m00 > self.m00_min:
+                        # blob detected
+                        if self.cy >= 560-100 and self.cy <= 560+100:
+                            print("BEACON DETECTED: Beaconing initiated")
+                            
+                        if self.cy < 560-100 and self.cy > 0 and self.lidar['closest'] > 0.3:
+                            fwd_vel = 0.1
+                            ang_vel = 0.5
+                            print("turning towards beacon")
+
+                        if self.cy > 560 + 100 and self.lidar['closest'] > 0.3:
+                            fwd_vel = 0.1
+                            ang_vel = -0.5
+                            print("turning towards beacon")
+
+                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.35:
+                            self.robot_controller.stop()
+                            stage = 7
+                
+                
+
+                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+                self.robot_controller.publish()
+                self.rate.sleep()
+            
+            while stage == 7:
                 self.rate.sleep()
                 self.robot_controller.stop()
                 self.robot_controller.publish()
