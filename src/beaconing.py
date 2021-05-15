@@ -22,8 +22,9 @@ from save_image import TB3Detection
 import numpy as np
 import time
 import os
+import threading
 
-class objectDetection(object):
+class beaconing(object):
     def __init__(self):
         self.init = False
         rospy.init_node('object_detection', anonymous=True)
@@ -63,6 +64,8 @@ class objectDetection(object):
         self.robot_odom = TB3Odometry()
         self.save_image = TB3Detection()
         self.init = True
+        self.zone_detected_yaw = 0.0
+        self.search_flag = False
 
     def shutdown_ops(self):
         rospy.logwarn("Received a shutdown request. Stopping robot...")
@@ -128,6 +131,37 @@ class objectDetection(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
+    def searching(self):
+        threading.Timer(5.0, searching).start()
+        currentRotation = self.robot_odom.yaw + 180
+        targetRotation = (startRotation + 95) % 360
+        print("searching for beacon")
+        if self.search_flag == True:
+            if not (currentRotation - targetRotation >= 0 and currentRotation - targetRotation < 10):
+                    if self.m00 > self.m00_min:
+                        # blob detected
+                        if self.cy >= 560-100 and self.cy <= 560+100:
+                            if self.move_rate == 'slow':
+                                self.move_rate = 'stop'
+                        else:
+                            self.move_rate = 'slow'
+                    else:
+                        self.move_rate = 'fast'
+
+                    if self.move_rate == 'fast':
+                        print("MOVING FAST: I can't see anything at the moment (blob size = {:.0f}), scanning the area...".format(self.m00))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+                    elif self.move_rate == 'slow':
+                        print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                    elif self.move_rate == 'stop':
+                        print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels.".format(self.cy))
+                        self.robot_controller.stop()
+                        self.search_flag = False
+                    else:
+                        print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+
     def main(self):
         stage = 1
         while not self.ctrl_c:
@@ -180,44 +214,15 @@ class objectDetection(object):
                 currentPosY = self.robot_odom.posy
                 if ((currentPosX - startPosX)**2 + (currentPosY - startPosY)**2 >= 0.2):
                     self.robot_controller.stop()
-                    stage = 5
+                    stage = 6
                 self.robot_controller.publish()
 
             while stage == 5:
                 self.robot_controller.publish()
-                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] < 95:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.7)
+                if not self.robot_odom.yaw > self.robot_odom.start_yaw - 5 and not self.robot_odom.yaw < self.robot_odom.start_yaw + 5:
+                    self.robot_controller.set_move_cmd(0.0, 0.5)
 
-                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] < 5:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = -0.7)
-
-                if self.lidar['closest angle'] >= 90 and self.lidar['closest'] > 0.42:
-                    self.robot_controller.set_move_cmd(linear = 0.2)
-
-                if self.lidar['closest angle'] >= 90 and self.lidar['closest'] < 0.42:
-                    self.robot_controller.set_move_cmd(linear = 0.1)
-                    
-                if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] > 270:
-                    self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.7)
-
-                if self.m00 > self.m00_min:
-                        # blob detected
-                        if self.cy >= 560-100 and self.cy <= 560+100:
-                            print("BEACON DETECTED: Beaconing initiated")
-
-                        if self.cy < 560-100 and self.cy > 0 and self.lidar['closest'] > 0.3:
-                            self.robot_controller.set_move_cmd(0.1, 0.2)
-                            print("turning towards beacon")
-
-                        if self.cy > 560 + 100 and self.lidar['closest'] > 0.3:
-                            self.robot_controller.set_move_cmd(0.1, -0.2)
-                            print("turning towards beacon")
-
-                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.3:
-                            self.robot_controller.stop()
-                            stage = 7
-
-                self.rate.sleep()
+              #  self.rate.sleep()
 
             while stage == 6:
                 fwd_vel = 0.2
@@ -225,29 +230,42 @@ class objectDetection(object):
                 kp = 0.01
                 min_ang = 55
                 max_ang = 305
+                global beacon_yaw
+                self.search_flag = True
+            # robot rotation when blobs detected:
 
-                # robot rotation when blobs detected:
-                if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.35:
-                    y_error = 45 - self.lidar["closest"]
-                    ang_vel = -(kp * y_error)
+                if self.lidar['closest angle'] > 95 and self.lidar['closest'] > 0.42:
+                    fwd_vel = 0.2
 
-                if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.35:
-                    y_error = 315 - self.lidar["closest"]
-                    ang_vel = (kp * y_error)
+                if self.lidar['closest angle'] > 95 and self.lidar['closest'] < 0.42:
+                    fwd_vel = 0.1
+                    
+        #        if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] > 265:
+         #           self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.7)
+          #      if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.6:
+           #         y_error = 45 - self.lidar["closest"]
+            #        ang_vel = -(kp * y_error)
+
+          #      if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.6:
+           #         y_error = 315 - self.lidar["closest"]
+            #        ang_vel = (kp * y_error)
 
                 # robot rotation when in a tight space:
-                if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
+                if self.lidar["closest"] <= 0.32 and self.lidar["closest angle"] < 90:
                     ang_vel = -0.5
                     fwd_vel = 0.0
 
-                if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
+                if self.lidar['closest'] <= 0.32 and self.lidar['closest angle'] > 270:
                     ang_vel = 0.5
                     fwd_vel = 0.0
 
                 if self.m00 > self.m00_min:
                         # blob detected
-                        if self.cy >= 560-100 and self.cy <= 560+100:
+                        if self.cy >= 560-100 and self.cy <= 560+100: 
                             print("BEACON DETECTED: Beaconing initiated")
+                            beacon_yaw = self.robot_odom.yaw 
+
+                     #   if self.robot_odom.yaw - beacon_yaw 
                             
                         if self.cy < 560-100 and self.cy > 0 and self.lidar['closest'] > 0.3:
                             fwd_vel = 0.1
@@ -276,7 +294,7 @@ class objectDetection(object):
                 print("BEACONING COMPLETE: The robot has now stopped.")
 
 if __name__ == '__main__':
-    lf_object = objectDetection()
+    lf_object = beaconing()
     try:
         lf_object.main()
     except rospy.ROSInterruptException:
