@@ -19,6 +19,7 @@ import time
 class mazeNav(object):
     def __init__(self):
         self.startup = True
+        self.startup2 = True
         rospy.init_node('maze_nav', anonymous=True)
         self.rate = rospy.Rate(5)
 
@@ -162,8 +163,6 @@ class mazeNav(object):
             rightSensor = False
             leftSensor = False
 
-            print(self.lidar['range right'])
-
             if self.lidar['range right'] <= 0.4:
                 rightSensor = True
 
@@ -173,11 +172,24 @@ class mazeNav(object):
             if self.lidar['range'] <= 0.4:
                 forwardSensor = True
 
+            print(self.init_yaw)
 
-            if forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
+            if abs(self.init_yaw) != pi/2 and abs(self.init_yaw) != pi and abs(self.init_yaw) != 2*pi and abs(self.init_yaw) != 3*pi/2 and abs(self.init_yaw) != 0:
+                print("I'm here")
+                while abs(self.init_yaw) != pi/2 and abs(self.init_yaw) != pi and abs(self.init_yaw) != 2*pi and abs(self.init_yaw) != 3*pi/2 and abs(self.init_yaw) != 0:
+                    fwd_vel = 0.0
+                    ang_vel = -0.3
+
+            if self.startup2 == True:
+                self.startup2 = False
+                fwd_vel = 0.26
+                ang_vel = 0.0
+                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+                self.robot_controller.publish()
+            elif forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
                 while abs(self.init_yaw - self.yaw) < pi/2:
                     fwd_vel = 0.0
-                    ang_vel = 1.0
+                    ang_vel = 0.3
                     print("2nd T Junction")
                     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                     self.robot_controller.publish()
@@ -185,7 +197,7 @@ class mazeNav(object):
             elif forwardSensor == True and rightSensor == False and leftSensor == False:
                 while abs(self.init_yaw - self.yaw) < pi/2:
                     fwd_vel = 0.0
-                    ang_vel = 1.0
+                    ang_vel = 0.3
                     print("T Junction")
                     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                     self.robot_controller.publish()
@@ -193,7 +205,7 @@ class mazeNav(object):
             elif forwardSensor == True and rightSensor == False:
                 while abs(self.init_yaw - self.yaw) < pi/2:
                     fwd_vel = 0.0
-                    ang_vel = -1.0 #turn right
+                    ang_vel = -0.3 #turn right
                     #print("turn right")
                     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                     self.robot_controller.publish()
@@ -201,16 +213,16 @@ class mazeNav(object):
             elif forwardSensor == True and rightSensor == True:
                 while abs(self.init_yaw - self.yaw) < pi/2:
                     fwd_vel = 0.0
-                    ang_vel = 1.0 #turn left
+                    ang_vel = 0.3 #turn left
                     #print("turn left")
                     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                     self.robot_controller.publish()
                 self.init_yaw = self.yaw
             else:
-                fwd_vel = 0.24
+                fwd_vel = 0.26
                 ang_vel = 0.0
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                self.robot_controller.publish
+                self.robot_controller.publish()
 
             self.rate.sleep()
 
