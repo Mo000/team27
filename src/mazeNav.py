@@ -172,13 +172,13 @@ class mazeNav(object):
             if self.lidar['range'] <= 0.4:
                 forwardSensor = True
 
-            print(self.init_yaw)
-
-            if abs(self.init_yaw) != pi/2 and abs(self.init_yaw) != pi and abs(self.init_yaw) != 2*pi and abs(self.init_yaw) != 3*pi/2 and abs(self.init_yaw) != 0:
-                print("I'm here")
-                while abs(self.init_yaw) != pi/2 and abs(self.init_yaw) != pi and abs(self.init_yaw) != 2*pi and abs(self.init_yaw) != 3*pi/2 and abs(self.init_yaw) != 0:
+            if round(abs(self.init_yaw), 2) != round(pi/2, 2) and round(abs(self.init_yaw), 2) != round(pi, 2) and round(abs(self.init_yaw), 2) != round(2*pi, 2) and round(abs(self.init_yaw), 2) != round(3*pi/2, 2) and round(abs(self.init_yaw), 2) != 0:
+                while round(abs(self.init_yaw), 2) != round(pi/2, 2) and round(abs(self.init_yaw), 2) != round(pi, 2) and round(abs(self.init_yaw), 2) != round(2*pi, 2) and round(abs(self.init_yaw), 2) != round(3*pi/2, 2) and round(abs(self.init_yaw), 2) != 0:
+                    #TODO turn to closest
                     fwd_vel = 0.0
-                    ang_vel = -0.3
+                    ang_vel = -0.1
+                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+                    self.robot_controller.publish()
 
             if self.startup2 == True:
                 self.startup2 = False
