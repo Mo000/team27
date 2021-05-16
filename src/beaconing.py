@@ -179,6 +179,7 @@ class beaconing(object):
                     time.sleep(1)
                     stage = 2
                 self.robot_controller.publish()
+            
             #Get colour of wall
             while stage == 2:
                 self.rate.sleep()
@@ -194,6 +195,7 @@ class beaconing(object):
                         print("SEARCH INITIATED: The target colour is {0}".format(self.colours[i]))
                         self.colour = i
                         stage = 3
+            
             #Turn back to starting rotation
             while stage == 3:
                 self.rate.sleep()
@@ -204,6 +206,7 @@ class beaconing(object):
                     time.sleep(1)
                     stage = 4
                 self.robot_controller.publish()
+            
             #Move 0.2 metre forward
             while stage == 4:
                 self.rate.sleep()
@@ -217,12 +220,19 @@ class beaconing(object):
                     stage = 6
                 self.robot_controller.publish()
 
+            # turn 180 degrees if start zone detected:
             while stage == 5:
+                self.rate.sleep()
+                global resetRotation
+                resetRotation = self.zone_detected_yaw + 180
+                turnRotation = (resetRotation + 180) % 360
+                self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+                currentRotation = self.robot_odom.yaw + 180
+                if (currentRotation - turnRotation >= 0 and currentRotation - turnRotation < 10):
+                    self.robot_controller.stop()
+                    time.sleep(1)
+                    stage = 6
                 self.robot_controller.publish()
-                if not self.robot_odom.yaw > self.robot_odom.start_yaw - 5 and not self.robot_odom.yaw < self.robot_odom.start_yaw + 5:
-                    self.robot_controller.set_move_cmd(0.0, 0.5)
-
-              #  self.rate.sleep()
 
             while stage == 6:
                 fwd_vel = 0.2
@@ -230,8 +240,7 @@ class beaconing(object):
                 kp = 0.01
                 min_ang = 55
                 max_ang = 305
-                global beacon_yaw
-                self.search_flag = True
+                print(self.robot_odom.start_posy)
             # robot rotation when blobs detected:
 
                 if self.lidar['closest angle'] > 95 and self.lidar['closest'] > 0.42:
@@ -239,16 +248,6 @@ class beaconing(object):
 
                 if self.lidar['closest angle'] > 95 and self.lidar['closest'] < 0.42:
                     fwd_vel = 0.1
-                    
-        #        if self.lidar['closest'] <= 0.4 and self.lidar['closest angle'] > 265:
-         #           self.robot_controller.set_move_cmd(linear = 0.0, angular = 0.7)
-          #      if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.6:
-           #         y_error = 45 - self.lidar["closest"]
-            #        ang_vel = -(kp * y_error)
-
-          #      if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.6:
-           #         y_error = 315 - self.lidar["closest"]
-            #        ang_vel = (kp * y_error)
 
                 # robot rotation when in a tight space:
                 if self.lidar["closest"] <= 0.32 and self.lidar["closest angle"] < 90:
@@ -261,9 +260,26 @@ class beaconing(object):
 
                 if self.m00 > self.m00_min:
                         # blob detected
-                        if self.cy >= 560-100 and self.cy <= 560+100: 
-                            print("BEACON DETECTED: Beaconing initiated")
-                            beacon_yaw = self.robot_odom.yaw 
+                        # code to turn robot 180 degrees if it detects start zone again
+                        if self.robot_odom.start_posy > 0:
+                            if self.cy >= 560-100 and self.cy <= 560+100 and (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
+                                print("SRART ZONE DETECTED: Tutning 180 degrees")
+                                self.zone_detected_yaw = self.robot_odom.yaw 
+                                print((self.robot_odom.start_posy - self.robot_odom.posy))
+                                stage = 5
+
+                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
+                                print("BEACON DETECTED: Beaconing initiated")
+
+                        if self.robot_odom.start_posy < 0:
+                            if self.cy >= 560-100 and self.cy <= 560+100 and (self.robot_odom.start_posx - self.robot_odom.posx) > -1.0: 
+                                print("SRART ZONE DETECTED: Tutning 180 degrees")
+                                self.zone_detected_yaw = self.robot_odom.yaw 
+                                stage = 5
+
+                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posx - self.robot_odom.posx) > -1.0: 
+                                print("BEACON DETECTED: Beaconing initiated")
+
 
                      #   if self.robot_odom.yaw - beacon_yaw 
                             
@@ -277,7 +293,7 @@ class beaconing(object):
                             ang_vel = -0.5
                             print("turning towards beacon")
 
-                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.35:
+                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.4:
                             self.robot_controller.stop()
                             stage = 7
                 
