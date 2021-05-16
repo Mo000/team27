@@ -240,7 +240,6 @@ class beaconing(object):
                 kp = 0.01
                 min_ang = 55
                 max_ang = 305
-                print(self.robot_odom.start_posy)
             # robot rotation when blobs detected:
 
                 if self.lidar['closest angle'] > 95 and self.lidar['closest'] > 0.42:
@@ -265,7 +264,6 @@ class beaconing(object):
                             if self.cy >= 560-100 and self.cy <= 560+100 and (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
                                 print("SRART ZONE DETECTED: Tutning 180 degrees")
                                 self.zone_detected_yaw = self.robot_odom.yaw 
-                                print((self.robot_odom.start_posy - self.robot_odom.posy))
                                 stage = 5
 
                             if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
@@ -277,7 +275,7 @@ class beaconing(object):
                                 self.zone_detected_yaw = self.robot_odom.yaw 
                                 stage = 5
 
-                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posx - self.robot_odom.posx) > -1.0: 
+                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posx - self.robot_odom.posx) < -1.0: 
                                 print("BEACON DETECTED: Beaconing initiated")
 
 
