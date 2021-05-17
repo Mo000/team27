@@ -288,7 +288,7 @@ class beaconing(object):
                 #print('current rotation: {0}'.format(currentRotation))
                 rotationDifference = abs(currentRotation - angleToStartZone)
                 facingStartZone = rotationDifference <= 10 or rotationDifference >= 350
-                if self.stopCounter == 300:
+                if self.stopCounter == 200:
                     blobSearched = self.searching()
                     currentRotation = self.robot_odom.yaw + 180
                     rotationDifference = abs(currentRotation - angleToStartZone)
@@ -304,9 +304,6 @@ class beaconing(object):
                 else:
                     fwd_vel = 0.2
                     ang_vel = 0.0
-                    kp = 0.01
-                    min_ang = 55
-                    max_ang = 305
                     if self.lidar['closest'] > 0.42:
                         fwd_vel = 0.2
 
@@ -322,7 +319,7 @@ class beaconing(object):
                         ang_vel = 0.5
                         fwd_vel = 0.0
 
-                    if self.m00 > self.m00_min:
+                    if self.m00 > self.m00_min and self.lidar['range'] > 0.2:
                         # blob detected
                         if self.cy >= 560-100 and self.cy <= 560+100:
                             if(facingStartZone):
@@ -337,21 +334,18 @@ class beaconing(object):
                         if self.cy < 560-100 and self.cy > 0 and self.lidar['range'] > 0.3:
                             fwd_vel = 0.1
                             ang_vel = 0.5
-                            print("turning towards beacon")
                         if self.cy > 560 + 100 and self.lidar['range'] > 0.3:
                             fwd_vel = 0.1
                             ang_vel = -0.5
-                            print("turning towards beacon")
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                 self.robot_controller.publish()
 
             while stage == 7:
                 self.rate.sleep()
                 fwd_vel = 0.1
-                if self.cy >= 560-100 and self.cy <= 560+100:
-                    if self.lidar["range"] < 0.1:
-                        self.robot_controller.stop()
-                        stage = 8
+                if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.3:
+                    self.robot_controller.stop()
+                    stage = 8
                 else:
                     stage = 6
 
