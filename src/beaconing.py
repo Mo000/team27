@@ -190,8 +190,6 @@ class beaconing(object):
                     print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
                     self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow * 2)
             else:
-                print(currentRotation)
-                print(targetRotation)
                 print("Search completed, beacon not found")
                 self.search_flag = False
         self.robot_controller.stop()
@@ -208,13 +206,13 @@ class beaconing(object):
         oppositeLength = 0
         adjacentLength = 0
         angleToStartZone = 0
-        #-x, -y
-        if (currentPosX - startPosX <= 0 and currentPosY - startPosY <= 0):
+        #-x, +y
+        if (currentPosX - startPosX < 0 and currentPosY - startPosY > 0):
             normalAngle = 90
             oppositeLength = abs(currentPosX - startPosX)
             adjacentLength = abs(currentPosY - startPosY)
-        #-x, +y
-        if (currentPosX - startPosX < 0 and currentPosY - startPosY > 0):
+        #-x, -y
+        if (currentPosX - startPosX <= 0 and currentPosY - startPosY <= 0):
             normalAngle = 180
             oppositeLength = abs(currentPosY - startPosY)
             adjacentLength = abs(currentPosX - startPosX)
@@ -335,7 +333,7 @@ class beaconing(object):
                         fwd_vel = 0.2
 
                     if self.lidar['closest'] < 0.42:
-                        fwd_vel = 0.1
+                        fwd_vel = 0.15
 
                     # robot rotation when in a tight space:
                     if self.lidar['closest'] <= 0.32 and (self.lidar['closest angle'] <= 45 or self.lidar['closest angle'] >= 315):
@@ -375,19 +373,24 @@ class beaconing(object):
 
             while stage == 7:
                 self.rate.sleep()
-                fwd_vel = 0.1
+                fwd_vel = 0.15
                 ang_vel = 0
-                if self.lidar["range"] <= 1:
-                    if self.lidar['range middle left'] < self.lidar['range middle right']:
-                        fwd_vel = 0.2
-                        ang_vel = -1
-                    else:
-                        ang_vel = 1
-                        fwd_vel = 0.2
                 if self.cy >= 560-150 and self.cy <= 560+150:
-                    if self.lidar["precise range"] < 0.3:
+                    if self.lidar["range"] < 0.3:
                         self.robot_controller.stop()
                         stage = 8
+                    else:
+                        if self.lidar["range"] <= 1:
+                            if self.lidar['range middle left'] < self.lidar['range middle right']:
+                                fwd_vel = 0.2
+                                if self.lidar["range"] < 0.3:
+                                    fwd_vel = 0
+                                ang_vel = -1
+                            else:
+                                fwd_vel = 0.2
+                                if self.lidar["range"] < 0.3:
+                                    fwd_vel = 0
+                                ang_vel = 1
                 else:
                     stage = 6
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
