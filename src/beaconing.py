@@ -20,6 +20,7 @@ from save_image import TB3Detection
 
 # Import some other useful Python Modules
 import numpy as np
+import math
 import time
 import os
 import threading
@@ -66,6 +67,7 @@ class beaconing(object):
         self.init = True
         self.zone_detected_yaw = 0.0
         self.search_flag = False
+        self.stopCounter = 0
 
     def shutdown_ops(self):
         rospy.logwarn("Received a shutdown request. Stopping robot...")
@@ -132,12 +134,16 @@ class beaconing(object):
         self.lidar['closest angle']=raw_data.argmin()
 
     def searching(self):
-        threading.Timer(5.0, searching).start()
+        #threading.Timer(5.0, searching).start()
+        self.robot_controller.stop()
         currentRotation = self.robot_odom.yaw + 180
-        targetRotation = (startRotation + 95) % 360
+        targetRotation = (currentRotation + 350) % 360
         print("searching for beacon")
-        if self.search_flag == True:
-            if not (currentRotation - targetRotation >= 0 and currentRotation - targetRotation < 10):
+        self.search_flag = True
+        while self.search_flag == True:
+            self.robot_controller.publish()
+            self.rate.sleep()
+            if not (currentRotation - targetRotation >= 0 and currentRotation - targetRotation < 5):
                     if self.m00 > self.m00_min:
                         # blob detected
                         if self.cy >= 560-100 and self.cy <= 560+100:
@@ -150,17 +156,24 @@ class beaconing(object):
 
                     if self.move_rate == 'fast':
                         print("MOVING FAST: I can't see anything at the moment (blob size = {:.0f}), scanning the area...".format(self.m00))
-                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast * 2)
                     elif self.move_rate == 'slow':
                         print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
-                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow * 2)
                     elif self.move_rate == 'stop':
                         print("STOPPED: The blob of colour is now dead-ahead at y-position {:.0f} pixels.".format(self.cy))
                         self.robot_controller.stop()
+                        self.robot_controller.publish()
                         self.search_flag = False
+                        return True
                     else:
                         print("MOVING SLOW: A blob of colour of size {:.0f} pixels is in view at y-position: {:.0f} pixels.".format(self.m00, self.cy))
-                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow)
+                        self.robot_controller.set_move_cmd(0.0, self.turn_vel_slow * 2)
+            else:
+                self.search_flag = False
+        self.robot_controller.stop()
+        self.robot_controller.publish()
+        return False
 
     def main(self):
         stage = 1
@@ -179,7 +192,7 @@ class beaconing(object):
                     time.sleep(1)
                     stage = 2
                 self.robot_controller.publish()
-            
+
             #Get colour of wall
             while stage == 2:
                 self.rate.sleep()
@@ -195,7 +208,7 @@ class beaconing(object):
                         print("SEARCH INITIATED: The target colour is {0}".format(self.colours[i]))
                         self.colour = i
                         stage = 3
-            
+
             #Turn back to starting rotation
             while stage == 3:
                 self.rate.sleep()
@@ -206,7 +219,7 @@ class beaconing(object):
                     time.sleep(1)
                     stage = 4
                 self.robot_controller.publish()
-            
+
             #Move 0.2 metre forward
             while stage == 4:
                 self.rate.sleep()
@@ -235,73 +248,114 @@ class beaconing(object):
                 self.robot_controller.publish()
 
             while stage == 6:
-                fwd_vel = 0.2
-                ang_vel = 0.0
-                kp = 0.01
-                min_ang = 55
-                max_ang = 305
-            # robot rotation when blobs detected:
+                self.rate.sleep()
+                startPosX = self.robot_odom.start_posx
+                startPosY = self.robot_odom.start_posy
+                currentPosX = self.robot_odom.posx
+                currentPosY = self.robot_odom.posy
+                currentRotation = self.robot_odom.yaw + 180
 
-                if self.lidar['closest angle'] > 95 and self.lidar['closest'] > 0.42:
+                blobSearched = False
+                normalAngle = 0
+                oppositeLength = 0
+                adjacentLength = 0
+                angleToStartZone = 0
+                self.stopCounter +=1
+                #-x, -y
+                if (currentPosX - startPosX <= 0 and currentPosY - startPosY <= 0):
+                    normalAngle = 90
+                    oppositeLength = abs(currentPosX - startPosX)
+                    adjacentLength = abs(currentPosY - startPosY)
+                #-x, +y
+                if (currentPosX - startPosX < 0 and currentPosY - startPosY > 0):
+                    normalAngle = 180
+                    oppositeLength = abs(currentPosY - startPosY)
+                    adjacentLength = abs(currentPosX - startPosX)
+                #+x, -y
+                if (currentPosX - startPosX > 0 and currentPosY - startPosY < 0):
+                    normalAngle = 270
+                    oppositeLength = abs(currentPosX - startPosX)
+                    adjacentLength = abs(currentPosY - startPosY)
+                #+x, +y
+                if (currentPosX - startPosX >= 0 and currentPosY - startPosY >= 0):
+                    normalAngle = 0
+                    oppositeLength = abs(currentPosY - startPosY)
+                    adjacentLength = abs(currentPosX - startPosX)
+
+                if adjacentLength != 0:
+                    angleToStartZone = math.degrees(math.atan(oppositeLength / adjacentLength)) + normalAngle
+                #print('angle to start: {0}'.format(angleToStartZone))
+                #print('current rotation: {0}'.format(currentRotation))
+                rotationDifference = abs(currentRotation - angleToStartZone)
+                facingStartZone = rotationDifference <= 10 or rotationDifference >= 350
+                if self.stopCounter == 300:
+                    blobSearched = self.searching()
+                    currentRotation = self.robot_odom.yaw + 180
+                    rotationDifference = abs(currentRotation - angleToStartZone)
+                    facingStartZone = rotationDifference <= 10 or rotationDifference >= 350
+                    if blobSearched:
+                        if not facingStartZone:
+                            print(angleToStartZone)
+                            print(currentRotation)
+                            stage = 7
+                        else:
+                            print("Blob found is the starting zone")
+                    self.stopCounter = 0
+                else:
                     fwd_vel = 0.2
+                    ang_vel = 0.0
+                    kp = 0.01
+                    min_ang = 55
+                    max_ang = 305
+                    if self.lidar['closest'] > 0.42:
+                        fwd_vel = 0.2
 
-                if self.lidar['closest angle'] > 95 and self.lidar['closest'] < 0.42:
-                    fwd_vel = 0.1
+                    if self.lidar['closest'] < 0.42:
+                        fwd_vel = 0.1
 
-                # robot rotation when in a tight space:
-                if self.lidar["closest"] <= 0.32 and self.lidar["closest angle"] < 90:
-                    ang_vel = -0.5
-                    fwd_vel = 0.0
+                    # robot rotation when in a tight space:
+                    if self.lidar["closest"] <= 0.32 and self.lidar["closest angle"] < 90:
+                        ang_vel = -0.5
+                        fwd_vel = 0.0
 
-                if self.lidar['closest'] <= 0.32 and self.lidar['closest angle'] > 270:
-                    ang_vel = 0.5
-                    fwd_vel = 0.0
+                    if self.lidar['closest'] <= 0.32 and self.lidar['closest angle'] > 270:
+                        ang_vel = 0.5
+                        fwd_vel = 0.0
 
-                if self.m00 > self.m00_min:
+                    if self.m00 > self.m00_min:
                         # blob detected
-                        # code to turn robot 180 degrees if it detects start zone again
-                        if self.robot_odom.start_posy > 0:
-                            if self.cy >= 560-100 and self.cy <= 560+100 and (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
-                                print("SRART ZONE DETECTED: Tutning 180 degrees")
-                                self.zone_detected_yaw = self.robot_odom.yaw 
+                        if self.cy >= 560-100 and self.cy <= 560+100:
+                            if(facingStartZone):
+                                print("START ZONE DETECTED: Turning 180 degrees")
+                                self.zone_detected_yaw = self.robot_odom.yaw
                                 stage = 5
+                            else:
+                                if self.lidar['range'] > 0.3:
+                                    print("BEACON DETECTED: Beaconing initiated")
+                                    stage = 7
 
-                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posy - self.robot_odom.posy) < 1.0: 
-                                print("BEACON DETECTED: Beaconing initiated")
-
-                        if self.robot_odom.start_posy < 0:
-                            if self.cy >= 560-100 and self.cy <= 560+100 and (self.robot_odom.start_posx - self.robot_odom.posx) > -1.0: 
-                                print("SRART ZONE DETECTED: Tutning 180 degrees")
-                                self.zone_detected_yaw = self.robot_odom.yaw 
-                                stage = 5
-
-                            if self.cy >= 560-100 and self.cy <= 560+100 and not (self.robot_odom.start_posx - self.robot_odom.posx) < -1.0: 
-                                print("BEACON DETECTED: Beaconing initiated")
-
-
-                     #   if self.robot_odom.yaw - beacon_yaw 
-                            
-                        if self.cy < 560-100 and self.cy > 0 and self.lidar['closest'] > 0.3:
+                        if self.cy < 560-100 and self.cy > 0 and self.lidar['range'] > 0.3:
                             fwd_vel = 0.1
                             ang_vel = 0.5
                             print("turning towards beacon")
-
-                        if self.cy > 560 + 100 and self.lidar['closest'] > 0.3:
+                        if self.cy > 560 + 100 and self.lidar['range'] > 0.3:
                             fwd_vel = 0.1
                             ang_vel = -0.5
                             print("turning towards beacon")
-
-                        if self.cy >= 560-100 and self.cy <= 560+100 and self.lidar["range"] < 0.4:
-                            self.robot_controller.stop()
-                            stage = 7
-                
-                
-
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                 self.robot_controller.publish()
-                self.rate.sleep()
-            
+
             while stage == 7:
+                self.rate.sleep()
+                fwd_vel = 0.1
+                if self.cy >= 560-100 and self.cy <= 560+100:
+                    if self.lidar["range"] < 0.1:
+                        self.robot_controller.stop()
+                        stage = 8
+                else:
+                    stage = 6
+
+            while stage == 8:
                 self.rate.sleep()
                 self.robot_controller.stop()
                 self.robot_controller.publish()
