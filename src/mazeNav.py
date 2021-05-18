@@ -23,11 +23,10 @@ class mazeNav(object):
         rospy.init_node('maze_nav', anonymous=True)
         self.rate = rospy.Rate(10)
 
-        self.odom_subscriber = rospy.Subscriber('/odom', Odometry, self.callback_odom)
         # allocate variables for "current" and "starting" robot pose
         #self.x = 0.0
         #self.y = 0.0
-        #self.yaw = 0.0
+        #self.robot_odom.yaw = 0.0
         #self.init_x =  0.0
         #self.init_y = 0.0
         #self.init_yaw = 0.0
@@ -42,7 +41,7 @@ class mazeNav(object):
         self.robot_odom = TB3Odometry()
 
         self.tJunctionFlag = 0
-
+        self.init_yaw = 0
         self.setup = True
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
@@ -51,36 +50,12 @@ class mazeNav(object):
         self.robot_controller.stop()
         self.ctrl_c = True
 
-    def callback_odom(self, odom_data):
-        # obtain the orientation co-ords:
-        x = odom_data.pose.pose.orientation.x
-        y = odom_data.pose.pose.orientation.y
-        z = odom_data.pose.pose.orientation.z
-        w = odom_data.pose.pose.orientation.w
-
-        # obtain the position co-ords:
-        self.x = odom_data.pose.pose.position.x
-        self.y = odom_data.pose.pose.position.y
-
-        # convert orientation co-ords to roll, pitch yaw (theta_x, theta_y, theta_z):
-        (roll, pitch, self.yaw) = euler_from_quaternion([x, y, z, w],'sxyz')
-
-        # set the initial robot pose if this node has just been launched
-        if self.startup:
-            # don't initialise again:
-            self.startup = False
-
-            # set the robot starting position:
-            self.init_x = self.x
-            self.init_y = self.y
-            self.init_yaw = self.yaw
-
     def callback_lidar(self, lidar_data):
 
         raw_data = np.array(lidar_data.ranges)
 
         # Directly in front of object
-        angle_tolerance = 5
+        angle_tolerance = 1
         self.lidar['range'] = min(min(raw_data[:angle_tolerance]),
                                min(raw_data[-angle_tolerance:]))
 
@@ -156,80 +131,150 @@ class mazeNav(object):
         #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
         #self.robot_controller.publish()
 
+    def normalizeAngle(self):
+        fwd_vel = 0
+        normalized = False
+
+        while not normalized:
+            self.rate.sleep()
+            convertedAngle = self.robot_odom.yaw + 180
+            overturnedAngle = convertedAngle % 90
+            if overturnedAngle < 0.1:
+                ang_vel = 0
+                normalized = True
+            elif overturnedAngle > 89.9:
+                ang_vel = 0
+                normalized = True
+            elif overturnedAngle < 1:
+                ang_vel = -0.02
+            elif overturnedAngle > 89:
+                ang_vel = 0.02
+            elif overturnedAngle < 5:
+                ang_vel = -0.2
+            elif overturnedAngle > 85:
+                ang_vel = 0.2
+            elif overturnedAngle < 45:
+                ang_vel = -0.5
+            elif overturnedAngle >= 45:
+                ang_vel = 0.5
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
+
+    def turn(self, dir, init):
+        # Dir 1 = Left, Dir -1 = Right
+        fwd_vel = 0
+        turning = True
+        while turning:
+            self.rate.sleep()
+            convertedAngle = self.robot_odom.yaw + 180
+            ang_vel = 0.5 * dir
+            if abs(convertedAngle - init) >= 90:
+                turning = False
+                ang_vel = 0
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
+        self.normalizeAngle()
+
     def main(self):
         while not self.ctrl_c:
+            self.rate.sleep()
             forwardSensor = False
             rightSensor = False
             leftSensor = False
-
-            if self.lidar['range right'] <= 0.4:
+            turned = False
+            speed = 1
+            if self.lidar['range right'] <= 0.5:
                 rightSensor = True
-
-            if self.lidar['range left'] <= 0.8:
+            if self.lidar['range left'] <= 0.5:
                 leftSensor = True
-
-            if self.lidar['range'] <= 0.45:
+            print("range: {0}".format(self.lidar['range']))
+            if self.lidar['range'] <= 0.4:
                 forwardSensor = True
+            if self.lidar['range'] > 0.5:
+                speed = 2
 
+            fwd_vel = 0
+            ang_vel = 0
+            convertedAngle = self.robot_odom.yaw + 180
+            if not forwardSensor:
+                turned = False
+                fwd_vel = 0.1 * speed
+            elif not rightSensor and not leftSensor and self.tJunctionFlag == 1:
+                if not turned:
+                    self.turn(-1, convertedAngle)
+                    turned = True
+                    self.tJunctionFlag += 1
+            elif not rightSensor and not leftSensor:
+                if not turned:
+                    self.turn(1, convertedAngle)
+                    turned = True
+                    self.tJunctionFlag += 1
+            elif not rightSensor:
+                if not turned:
+                    self.turn(-1, convertedAngle)
+                    turned = True
+            elif not leftSensor:
+                if not turned:
+                    self.turn(1, convertedAngle)
+                    turned = True
 
-            if self.startup2 == True:
-                self.startup2 = False
-                fwd_vel = 0.26
-                ang_vel = 0.0
-                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                self.robot_controller.publish()
-                print("launching!")
-            elif forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3
-                    print("2nd T Junction")
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-            elif forwardSensor == True and rightSensor == False and leftSensor == False:
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3
-                    print("T Junction")
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-            elif forwardSensor == True and rightSensor == False:
-                print("turn right")
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = -0.3 #turn right
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-            elif forwardSensor == True and rightSensor == True:
-                print("turn left")
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3 #turn left
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-            elif round(abs(self.yaw), 1) != round(pi/2, 1) and round(abs(self.yaw), 1) != round(pi, 1) and round(abs(self.yaw), 1) != round(2*pi, 1) and round(abs(self.yaw), 1) != round(3*pi/2, 1) and round(abs(self.yaw), 1) != round(abs(pi-pi), 1):
-                print(round(abs(self.yaw), 1))
-                while round(abs(self.yaw), 1) != round(pi/2, 1) and round(abs(self.yaw), 1) != round(pi, 1) and round(abs(self.yaw), 1) != round(2*pi, 1) and round(abs(self.yaw), 1) != round(3*pi/2, 1) and round(abs(self.yaw), 1) != round(abs(pi-pi), 1):
-                    if round(abs(self.yaw), 1) < round(3*pi/4, 1) and round(abs(self.yaw), 1) > round(pi/2, 1) or round(abs(self.yaw), 1) < round(5*pi/4, 1) and round(abs(self.yaw), 1) > round(pi, 1) or round(abs(self.yaw), 1) < round(7*pi/4, 1) and round(abs(self.yaw), 1) > round(3*pi/2, 1) or round(abs(self.yaw), 1) < round(pi/4, 1) and round(abs(pi-pi), 1):
-                        fwd_vel = 0.0
-                        ang_vel = -0.1
-                    else:
-                        fwd_vel = 0.0
-                        ang_vel = 0.1
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-            else:
-                fwd_vel = 0.26
-                ang_vel = 0.0
-                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                self.robot_controller.publish()
-
-            self.rate.sleep()
-
+            # if self.startup2 == True:
+            #     self.startup2 = False
+            #     fwd_vel = 0.26
+            #     ang_vel = 0.0
+            #     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #     self.robot_controller.publish()
+            #     print("launching!")
+            # elif forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
+            #     while abs(self.init_yaw - self.robot_odom.yaw) < 90:
+            #         fwd_vel = 0.0
+            #         ang_vel = 0.3
+            #         print("2nd T Junction")
+            #         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #         self.robot_controller.publish()
+            #     self.init_yaw = self.robot_odom.yaw
+            # elif forwardSensor == True and rightSensor == False and leftSensor == False:
+            #     while abs(self.init_yaw - self.robot_odom.yaw) < 90:
+            #         fwd_vel = 0.0
+            #         ang_vel = 0.3
+            #         print("T Junction")
+            #         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #         self.robot_controller.publish()
+            #     self.init_yaw = self.robot_odom.yaw
+            # elif forwardSensor == True and rightSensor == False:
+            #     print("turn right")
+            #     while abs(self.init_yaw - self.robot_odom.yaw) < 90:
+            #         fwd_vel = 0.0
+            #         ang_vel = -0.3 #turn right
+            #         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #         self.robot_controller.publish()
+            #     self.init_yaw = self.robot_odom.yaw
+            # elif forwardSensor == True and rightSensor == True:
+            #     print("turn left")
+            #     while abs(self.init_yaw - self.robot_odom.yaw) < 90:
+            #         fwd_vel = 0.0
+            #         ang_vel = 0.3 #turn left
+            #         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #         self.robot_controller.publish()
+            #     self.init_yaw = self.robot_odom.yaw
+            # elif round(abs(self.robot_odom.yaw), 1) != round(pi/2, 1) and round(abs(self.robot_odom.yaw), 1) != round(pi, 1) and round(abs(self.robot_odom.yaw), 1) != round(2*pi, 1) and round(abs(self.robot_odom.yaw), 1) != round(3*pi/2, 1) and round(abs(self.robot_odom.yaw), 1) != round(abs(pi-pi), 1):
+            #     print(round(abs(self.robot_odom.yaw), 1))
+            #     while round(abs(self.robot_odom.yaw), 1) != round(pi/2, 1) and round(abs(self.robot_odom.yaw), 1) != round(pi, 1) and round(abs(self.robot_odom.yaw), 1) != round(2*pi, 1) and round(abs(self.robot_odom.yaw), 1) != round(3*pi/2, 1) and round(abs(self.robot_odom.yaw), 1) != round(abs(pi-pi), 1):
+            #         if round(abs(self.robot_odom.yaw), 1) < round(3*pi/4, 1) and round(abs(self.robot_odom.yaw), 1) > round(pi/2, 1) or round(abs(self.robot_odom.yaw), 1) < round(5*pi/4, 1) and round(abs(self.robot_odom.yaw), 1) > round(pi, 1) or round(abs(self.robot_odom.yaw), 1) < round(7*pi/4, 1) and round(abs(self.robot_odom.yaw), 1) > round(3*pi/2, 1) or round(abs(self.robot_odom.yaw), 1) < round(pi/4, 1) and round(abs(pi-pi), 1):
+            #             fwd_vel = 0.0
+            #             ang_vel = -0.1
+            #         else:
+            #             fwd_vel = 0.0
+            #             ang_vel = 0.1
+            #         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #         self.robot_controller.publish()
+            # else:
+            #     fwd_vel = 0.26
+            #     ang_vel = 0.0
+            #     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            #     self.robot_controller.publish()
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
 if __name__ == '__main__':
     lf_object = mazeNav()
     try:
