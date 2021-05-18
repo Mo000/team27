@@ -36,14 +36,20 @@ class beaconing(object):
 
         self.lidar_subscriber = rospy.Subscriber('/scan', LaserScan, self.callback_lidar)
         self.lidar = {'range': 0.0,
+                      'precise range': 0.0,
+                      'big range': 0.0,
                       'closest': 0.0,
                       'closest angle': 0,
                       'range left': 0,
-                      'range right': 0}
+                      'range right': 0,
+                      'range middle left': 0,
+                      'range middle right': 0,
+                      'range middle thin left': 0,
+                      'range middle thin right': 0}
 
         self.robot_controller = MoveTB3()
         self.turn_vel_fast = 0.5
-        self.turn_vel_slow = 0.1
+        self.turn_vel_slow = 0.2
         self.robot_controller.set_move_cmd(0.0, self.turn_vel_fast)
 
         self.move_rate = '' # fast, slow or stop
@@ -123,6 +129,9 @@ class beaconing(object):
         self.lidar['range'] = min(min(raw_data[:angle_tolerance]),
                                min(raw_data[-angle_tolerance:]))
 
+        self.lidar['big range'] = min(min(raw_data[:(angle_tolerance * 3)]),
+                               min(raw_data[(-angle_tolerance * 3):]))
+
         self.lidar['range left'] = min(min(raw_data[90:135]),
                                min(raw_data[45:90]))
 
@@ -130,11 +139,24 @@ class beaconing(object):
         self.lidar['range right'] = min(min(raw_data[-135:-90]),
                                min(raw_data[-90:-45]))
 
+        self.lidar['range thin left'] = min(min(raw_data[100:120]),
+                               min(raw_data[80:100]))
+
+        # -45 to -135 to the right but not behind or infront
+        self.lidar['range thin right'] = min(min(raw_data[-120:-100]),
+                               min(raw_data[-100:-80]))
+
         self.lidar['range middle left'] = min(min(raw_data[45:90]),
                                min(raw_data[:45]))
 
         self.lidar['range middle right'] = min(min(raw_data[-90:-45]),
                                min(raw_data[-45:]))
+
+        self.lidar['range middle thin left'] = min(min(raw_data[10:20]),
+                                min(raw_data[:10]))
+
+        self.lidar['range middle thin right'] = min(min(raw_data[-20:-10]),
+                                min(raw_data[-10:]))
 
         # Closest object
         self.lidar['closest'] = min(raw_data)
@@ -232,7 +254,7 @@ class beaconing(object):
         #print('angle to start: {0}'.format(angleToStartZone))
         #print('current rotation: {0}'.format(currentRotation))
         rotationDifference = abs(currentRotation - angleToStartZone)
-        facingStartZone = rotationDifference <= 10 or rotationDifference >= 350
+        facingStartZone = rotationDifference <= 15 or rotationDifference >= 345
         return facingStartZone
 
     def main(self):
@@ -322,6 +344,7 @@ class beaconing(object):
                     facingStartZone = self.isFacingStartZone()
                     if blobSearched:
                         if not facingStartZone:
+                            print("BEACON DETECTED: Beaconing initiated")
                             stage = 7
                         else:
                             print("Blob found is the starting zone")
@@ -337,7 +360,7 @@ class beaconing(object):
 
                     # robot rotation when in a tight space:
                     if self.lidar['closest'] <= 0.32 and (self.lidar['closest angle'] <= 45 or self.lidar['closest angle'] >= 315):
-                        if self.lidar['range left'] < self.lidar['range right']:
+                        if self.lidar['range thin left'] < self.lidar['range thin right']:
                             ang_vel = -0.5
                             fwd_vel = 0.0
                         else:
@@ -349,25 +372,44 @@ class beaconing(object):
                     elif self.lidar['closest'] <= 0.32 and self.lidar['closest angle'] > 270:
                         ang_vel = 0.5
                         fwd_vel = 0.0
-                    if self.m00 > self.m00_min and self.lidar['range'] > 0.2:
+                    if self.m00 > self.m00_min:
+                        self.stopCounter -=1
                         facingStartZone = self.isFacingStartZone()
                         # blob detected
-                        if self.cy >= 560-100 and self.cy <= 560+100:
+                        print("BEACON DETECTED: Beaconing initiated")
+                        if self.cy >= 560-20 and self.cy <= 560+20:
                             if(facingStartZone):
                                 print("START ZONE DETECTED: Turning 180 degrees")
                                 self.zone_detected_yaw = self.robot_odom.yaw
                                 stage = 5
                             else:
-                                if self.lidar['range'] > 0.3:
-                                    print("BEACON DETECTED: Beaconing initiated")
-                                    stage = 7
-
-                        if self.cy < 560-100 and self.cy > 0 and self.lidar['range'] > 0.3:
-                            fwd_vel = 0.1
-                            ang_vel = 0.5
-                        if self.cy > 560 + 100 and self.lidar['range'] > 0.3:
-                            fwd_vel = 0.1
-                            ang_vel = -0.5
+                                stage = 7
+                        elif self.cy <= 560:
+                            fwd_vel = 0.15
+                            ang_vel = 0
+                            if self.cy >= 560-350 and self.cy < 560:
+                                if self.lidar['range middle right'] > 0.1:
+                                    ang_vel = -0.35
+                                else:
+                                    ang_vel = 0.1
+                            elif self.cy < 560-350:
+                                ang_vel = 0.1
+                            if self.lidar["big range"] < 0.5:
+                                self.robot_controller.stop()
+                                stage = 9
+                        elif self.cy >= 560:
+                            fwd_vel = 0.15
+                            ang_vel = 0
+                            if self.cy <= 560+350 and self.cy > 560:
+                                if self.lidar['range middle left'] > 0.1:
+                                    ang_vel = 0.35
+                                else:
+                                    ang_vel = -0.1
+                            elif self.cy > 560+350:
+                                ang_vel = -0.1
+                            if self.lidar["big range"] < 0.5:
+                                self.robot_controller.stop()
+                                stage = 9
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                 self.robot_controller.publish()
 
@@ -375,31 +417,46 @@ class beaconing(object):
                 self.rate.sleep()
                 fwd_vel = 0.15
                 ang_vel = 0
-                if self.cy >= 560-150 and self.cy <= 560+150:
-                    if self.lidar["range"] < 0.3:
+                if self.cy >= 560-20 and self.cy <= 560+20:
+                    if self.lidar["range"] < 0.5:
                         self.robot_controller.stop()
-                        stage = 8
+                        stage = 9
                     else:
-                        if self.lidar["range"] <= 1:
-                            if self.lidar['range middle left'] < self.lidar['range middle right']:
-                                fwd_vel = 0.2
-                                if self.lidar["range"] < 0.3:
-                                    fwd_vel = 0
-                                ang_vel = -1
+                        ang_vel = 0
+                        if self.lidar['range'] < 1:
+                            if self.cy >= 560:
+                                fwd_vel = 0.05
+                                ang_vel = -0.2
                             else:
-                                fwd_vel = 0.2
-                                if self.lidar["range"] < 0.3:
-                                    fwd_vel = 0
-                                ang_vel = 1
+                                fwd_vel = 0.05
+                                ang_vel = 0.2
                 else:
                     stage = 6
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                 self.robot_controller.publish()
             while stage == 8:
-                self.rate.sleep()
                 self.robot_controller.stop()
                 self.robot_controller.publish()
+                self.rate.sleep()
                 print("BEACONING COMPLETE: The robot has now stopped.")
+            while stage == 9:
+                fwd_vel = 0
+                if self.cy < 560-20:
+                    ang_vel = 0.5
+                elif self.cy > 560+20:
+                    ang_vel = -0.5
+                elif self.cy >= 560-20 and self.cy <= 560+20:
+                    if self.lidar['precise range'] < 0.5:
+                        stage = 8
+                    else:
+                        stage = 7
+                else:
+                    blobSearched = self.searching()
+                    if blobSearched == false:
+                        stage = 6
+                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+                self.robot_controller.publish()
+                self.rate.sleep()
 
 if __name__ == '__main__':
     lf_object = beaconing()
