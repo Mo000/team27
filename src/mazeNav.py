@@ -187,8 +187,6 @@ class mazeNav(object):
                 rightSensor = True
             if self.lidar['range left'] <= 0.5:
                 leftSensor = True
-<<<<<<< HEAD
-            print("range: {0}".format(self.lidar['range']))
             if self.lidar['range'] <= 0.4:
                 forwardSensor = True
             if self.lidar['range'] > 0.5:
@@ -276,108 +274,6 @@ class mazeNav(object):
             #     self.robot_controller.publish()
             self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
             self.robot_controller.publish()
-=======
-
-            if self.lidar['range'] <= 0.4:
-                forwardSensor = True
-
-            self.robot_controller.set_move_cmd(0.0, 0.0)
-            self.robot_controller.publish()
-
-            if self.startup2 == True:
-                self.startup2 = False
-                fwd_vel = 0.2
-                ang_vel = 0.0
-                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                self.robot_controller.publish()
-                print("launching!")
-            elif forwardSensor == True and rightSensor == False and leftSensor == False and self.tJunctionFlag == 1:
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3
-                    print("2nd T Junction")
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-                self.robot_controller.set_move_cmd(0.0, 0.0)
-                self.robot_controller.publish()
-            elif forwardSensor == True and rightSensor == False and leftSensor == False:
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3
-                    print("T Junction")
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-                self.robot_controller.set_move_cmd(0.0, 0.0)
-                self.robot_controller.publish()
-            elif forwardSensor == True and rightSensor == False:
-                print("turn right")
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = -0.3 #turn right
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-                self.robot_controller.set_move_cmd(0.0, 0.0)
-                self.robot_controller.publish()
-            elif forwardSensor == True and rightSensor == True:
-                print("turn left")
-                while abs(self.init_yaw - self.yaw) < pi/2:
-                    fwd_vel = 0.0
-                    ang_vel = 0.3 #turn left
-                    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                    self.robot_controller.publish()
-                self.init_yaw = self.yaw
-                self.robot_controller.set_move_cmd(0.0, 0.0)
-                self.robot_controller.publish()
-            #elif round(abs(self.yaw), 1) != round(pi/2, 1) and round(abs(self.yaw), 1) != round(pi, 1) and round(abs(self.yaw), 1) != round(2*pi, 1) and round(abs(self.yaw), 1) != round(3*pi/2, 1) and round(abs(self.yaw), 1) != round(abs(pi-pi), 1):
-            #    print(round(abs(self.yaw), 1))
-            #    while round(abs(self.yaw), 1) != round(pi/2, 1) and round(abs(self.yaw), 1) != round(pi, 1) and round(abs(self.yaw), 1) != round(2*pi, 1) and round(abs(self.yaw), 1) != round(3*pi/2, 1) and round(abs(self.yaw), 1) != round(abs(pi-pi), 1):
-            #        if round(abs(self.yaw), 1) < round(3*pi/4, 1) and round(abs(self.yaw), 1) > round(pi/2, 1) or round(abs(self.yaw), 1) < round(5*pi/4, 1) and round(abs(self.yaw), 1) > round(pi, 1) or round(abs(self.yaw), 1) < round(7*pi/4, 1) and round(abs(self.yaw), 1) > round(3*pi/2, 1) or round(abs(self.yaw), 1) < round(pi/4, 1) and round(abs(pi-pi), 1):
-            #            fwd_vel = 0.0
-            #            ang_vel = -0.1 #turn right
-            #        else:
-            #            fwd_vel = 0.0
-            #            ang_vel = 0.1 #turn left
-            #        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #        self.robot_controller.publish()
-            #elif self.lidar['range right'] <= 0.2:
-            #    fwd_vel = 0.2
-            #    ang_vel = -0.5
-            #    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #    self.robot_controller.publish()
-            #    print("correcting")
-            #elif self.lidar['range left'] <= 0.2:
-            #    fwd_vel = 0.2
-            #    ang_vel = 0.5
-            #    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            #    self.robot_controller.publish()
-            #    print("correcting")
-            elif round(abs(self.yaw), 1) % 1.575 > 0.05 and round(abs(self.yaw), 1) % 1.575 < 1.52:
-                print(round(abs(self.yaw), 1) % 1.575)
-                while round(abs(self.yaw), 1) % 1.575 > 0.05 and round(abs(self.yaw), 1) % 1.575 < 1.52:
-                    if round(abs(self.yaw), 1) % 1.575 < 0.785:
-                        fwd_vel = 0.0
-                        ang_vel = -0.1 #turn right
-                        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                        self.robot_controller.publish()
-                    else:
-                        fwd_vel = 0.0
-                        ang_vel = 0.1 #turn left
-                        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                        self.robot_controller.publish()
-                    self.robot_controller.set_move_cmd(0.0, 0.0)
-                    self.robot_controller.publish()
-            else:
-                fwd_vel = 0.2
-                ang_vel = 0.0
-                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-                self.robot_controller.publish()
-
-            self.rate.sleep()
-
->>>>>>> 10d4b54909b696c91bb01281ecaf05f3a5dc54b2
 if __name__ == '__main__':
     lf_object = mazeNav()
     try:
