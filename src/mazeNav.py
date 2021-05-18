@@ -21,7 +21,7 @@ class mazeNav(object):
         self.startup = True
         self.startup2 = True
         rospy.init_node('maze_nav', anonymous=True)
-        self.rate = rospy.Rate(2)
+        self.rate = rospy.Rate(100)
 
         # allocate variables for "current" and "starting" robot pose
         #self.x = 0.0
@@ -131,34 +131,65 @@ class mazeNav(object):
         #self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
         #self.robot_controller.publish()
 
-    def normalizeAngle(self):
-        fwd_vel = 0
+    def driftAngle(self, speed):
+        fwd_vel = speed
+        normalized = False
+        convertedAngle = self.robot_odom.yaw + 180
+        overturnedAngle = convertedAngle % 90
+        if overturnedAngle < 0.1:
+            ang_vel = 0
+            normalized = True
+        elif overturnedAngle > 89.9:
+            ang_vel = 0
+            normalized = True
+        elif overturnedAngle < 0.5:
+            ang_vel = 0.0005
+            if speed == 0:
+                normalized = True
+        elif overturnedAngle > 89.5:
+            ang_vel = -0.0005
+            if speed == 0:
+                normalized = True
+        elif overturnedAngle < 1:
+            ang_vel = -0.005
+            speed /= 1.5
+            if speed == 0:
+                normalized = True
+        elif overturnedAngle > 89:
+            ang_vel = 0.005
+            speed /= 1.5
+            if speed == 0:
+                normalized = True
+        elif overturnedAngle < 2.5:
+            ang_vel = -0.04
+        elif overturnedAngle > 87.5:
+            ang_vel = 0.04
+        elif overturnedAngle < 5:
+            ang_vel = -0.08
+        elif overturnedAngle > 85:
+            ang_vel = 0.08
+        elif overturnedAngle < 10:
+            ang_vel = -0.16
+        elif overturnedAngle > 80:
+            ang_vel = 0.16
+        elif overturnedAngle < 45:
+            ang_vel = -0.5
+        elif overturnedAngle >= 45:
+            ang_vel = 0.5
+
+        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+        self.robot_controller.publish()
+
+        return normalized
+
+
+    def normalizeAngle(self, speed):
+        fwd_vel = speed
         normalized = False
 
         while not normalized:
             self.rate.sleep()
-            convertedAngle = self.robot_odom.yaw + 180
-            overturnedAngle = convertedAngle % 90
-            if overturnedAngle < 0.1:
-                ang_vel = 0
-                normalized = True
-            elif overturnedAngle > 89.9:
-                ang_vel = 0
-                normalized = True
-            elif overturnedAngle < 1:
-                ang_vel = -0.02
-            elif overturnedAngle > 89:
-                ang_vel = 0.02
-            elif overturnedAngle < 5:
-                ang_vel = -0.2
-            elif overturnedAngle > 85:
-                ang_vel = 0.2
-            elif overturnedAngle < 45:
-                ang_vel = -0.5
-            elif overturnedAngle >= 45:
-                ang_vel = 0.5
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
+            normalized = self.driftAngle(speed)
 
     def turn(self, dir, init):
         # Dir 1 = Left, Dir -1 = Right
@@ -173,7 +204,7 @@ class mazeNav(object):
                 ang_vel = 0
             self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
             self.robot_controller.publish()
-        self.normalizeAngle()
+        self.normalizeAngle(0)
 
     def main(self):
         while not self.ctrl_c:
@@ -182,39 +213,47 @@ class mazeNav(object):
             rightSensor = False
             leftSensor = False
             turned = False
-            speed = 1
-            if self.lidar['range right'] <= 0.5:
+            speed = 0.5
+            if self.lidar['range right'] <= 0.8:
                 rightSensor = True
-            if self.lidar['range left'] <= 0.5:
+            if self.lidar['range left'] <= 0.8:
                 leftSensor = True
-            if self.lidar['range'] <= 0.4:
+            if self.lidar['range'] <= 0.35:
                 forwardSensor = True
-            if self.lidar['range'] > 0.5:
+            if self.lidar['range'] >= 0.4:
+                speed = 1
+            if self.lidar['range'] >= 0.5:
+                speed = 1.5
+            if self.lidar['range'] >= 0.6:
                 speed = 2
+            if self.lidar['range'] >= 0.8:
+                speed = 2.6
 
             fwd_vel = 0
             ang_vel = 0
             convertedAngle = self.robot_odom.yaw + 180
+            nearestAngle = round(convertedAngle/90)*90
             if not forwardSensor:
                 turned = False
                 fwd_vel = 0.1 * speed
+                self.driftAngle(fwd_vel)
             elif not rightSensor and not leftSensor and self.tJunctionFlag == 1:
                 if not turned:
-                    self.turn(-1, convertedAngle)
+                    self.turn(-1.5, nearestAngle)
                     turned = True
                     self.tJunctionFlag += 1
             elif not rightSensor and not leftSensor:
                 if not turned:
-                    self.turn(1, convertedAngle)
+                    self.turn(1.5, nearestAngle)
                     turned = True
                     self.tJunctionFlag += 1
             elif not rightSensor:
                 if not turned:
-                    self.turn(-1, convertedAngle)
+                    self.turn(-1.5, nearestAngle)
                     turned = True
             elif not leftSensor:
                 if not turned:
-                    self.turn(1, convertedAngle)
+                    self.turn(1.5, nearestAngle)
                     turned = True
 
             # if self.startup2 == True:
@@ -272,8 +311,8 @@ class mazeNav(object):
             #     ang_vel = 0.0
             #     self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
             #     self.robot_controller.publish()
-            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-            self.robot_controller.publish()
+            # self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            # self.robot_controller.publish()
 if __name__ == '__main__':
     lf_object = mazeNav()
     try:
