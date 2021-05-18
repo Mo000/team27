@@ -161,21 +161,21 @@ class mazeNav(object):
             if speed == 0:
                 normalized = True
         elif overturnedAngle < 2.5:
-            ang_vel = -0.04
+            ang_vel = -0.05
         elif overturnedAngle > 87.5:
-            ang_vel = 0.04
+            ang_vel = 0.05
         elif overturnedAngle < 5:
-            ang_vel = -0.08
+            ang_vel = -0.1
         elif overturnedAngle > 85:
-            ang_vel = 0.08
+            ang_vel = 0.1
         elif overturnedAngle < 10:
-            ang_vel = -0.16
+            ang_vel = -0.25
         elif overturnedAngle > 80:
-            ang_vel = 0.16
+            ang_vel = 0.25
         elif overturnedAngle < 45:
-            ang_vel = -0.5
+            ang_vel = -1
         elif overturnedAngle >= 45:
-            ang_vel = 0.5
+            ang_vel = 1
 
         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
         self.robot_controller.publish()
@@ -213,7 +213,7 @@ class mazeNav(object):
             rightSensor = False
             leftSensor = False
             turned = False
-            speed = 0.5
+            speed = 0.75
             if self.lidar['range right'] <= 0.8:
                 rightSensor = True
             if self.lidar['range left'] <= 0.8:
