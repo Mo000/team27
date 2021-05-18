@@ -49,7 +49,6 @@ class mazeNav(object):
 
     def shutdown_ops(self):
         self.robot_controller.stop()
-        cv2.destroyAllWindows()
         self.ctrl_c = True
 
     def callback_odom(self, odom_data):
