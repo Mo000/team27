@@ -33,9 +33,10 @@ class obstacleAvoidance(object):
         rospy.on_shutdown(self.shutdown_ops)
 
     def shutdown_ops(self):
+        rospy.logwarn("Received a shutdown request. Stopping robot...")
         self.robot_controller.stop()
-        cv2.destroyAllWindows()
         self.ctrl_c = True
+        rospy.logwarn("Robot stopped")
 
     def callback_lidar(self, lidar_data):
 
@@ -59,6 +60,7 @@ class obstacleAvoidance(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
+<<<<<<< HEAD
         kp = 0.04
         min_ang = 55
         max_ang = 305
@@ -84,8 +86,51 @@ class obstacleAvoidance(object):
         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
         self.robot_controller.publish()
 
+=======
+>>>>>>> pat-task-2
     def main(self):
         while not self.ctrl_c:
+            fwd_vel = 0.2
+            ang_vel = 0.0
+            kp = 0.01
+            min_ang = 55
+            max_ang = 305
+            print(self.lidar["closest angle"])
+            print(self.lidar["closest"])
+
+            # robot rotation when blobs detected:
+            if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.4:
+                y_error = 45 - self.lidar["closest"]
+                ang_vel = -(kp * y_error)
+                print("turning right")
+
+            if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.4:
+                y_error = 315 - self.lidar["closest"]
+                ang_vel = (kp * y_error)
+                print("turning left")
+
+            # robot rotation when in a tight space:
+            if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
+                ang_vel = -0.5
+                fwd_vel = 0.0
+                print("turning right")
+
+            if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
+                ang_vel = 0.5
+                fwd_vel = 0.0
+                print("turning left")
+            
+            # slow robot down when its close to an object:
+            if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] > 270:
+                fwd_vel = 0.1
+                print('slowing down')
+
+            if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] < 90:
+                fwd_vel = 0.1
+                print('slowing down')
+
+            self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+            self.robot_controller.publish()
             self.rate.sleep()
 
 if __name__ == '__main__':

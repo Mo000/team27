@@ -1,4 +1,8 @@
 <launch>
+<<<<<<< HEAD
    <node pkg="team27" type="obstAvoid.py" name="obst_avoidance"  output="screen">
+=======
+   <node pkg="team27" type="obstAvoid.py" name="obstacleAvoidance" output="screen">
+>>>>>>> pat-task-2
    </node>
  </launch>
