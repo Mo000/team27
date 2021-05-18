@@ -21,7 +21,7 @@ class mazeNav(object):
         self.startup = True
         self.startup2 = True
         rospy.init_node('maze_nav', anonymous=True)
-        self.rate = rospy.Rate(5)
+        self.rate = rospy.Rate(10)
 
         self.odom_subscriber = rospy.Subscriber('/odom', Odometry, self.callback_odom)
         # allocate variables for "current" and "starting" robot pose
@@ -49,7 +49,6 @@ class mazeNav(object):
 
     def shutdown_ops(self):
         self.robot_controller.stop()
-        cv2.destroyAllWindows()
         self.ctrl_c = True
 
     def callback_odom(self, odom_data):
