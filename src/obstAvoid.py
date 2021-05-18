@@ -60,34 +60,6 @@ class obstacleAvoidance(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
-<<<<<<< HEAD
-        kp = 0.04
-        min_ang = 55
-        max_ang = 305
-        print(self.lidar["closest angle"])
-        if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] < 90:
-           fwd_vel = 0.0
-           ang_vel = -0.5
-        elif self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
-           fwd_vel= 0.0
-           ang_vel = 0.5
-        else:
-            fwd_vel = 0.2
-            ang_vel = 0.0
-            if self.lidar["closest angle"] < min_ang and self.lidar["closest angle"] >= 0:
-                y_error = 0 - self.lidar["closest angle"]
-                ang_vel = (kp * y_error)
-                print("turning right")
-            if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > max_ang:
-                y_error = 360 - self.lidar["closest angle"]
-                ang_vel = (kp * y_error)
-                print("turning left")
-
-        self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
-        self.robot_controller.publish()
-
-=======
->>>>>>> pat-task-2
     def main(self):
         while not self.ctrl_c:
             fwd_vel = 0.2
@@ -119,7 +91,7 @@ class obstacleAvoidance(object):
                 ang_vel = 0.5
                 fwd_vel = 0.0
                 print("turning left")
-            
+
             # slow robot down when its close to an object:
             if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] > 270:
                 fwd_vel = 0.1
