@@ -169,9 +169,11 @@ class mazeNav(object):
             if self.lidar['range left'] <= 0.8:
                 leftSensor = True
 
-            if self.lidar['range'] <= 0.45:
+            if self.lidar['range'] <= 0.4:
                 forwardSensor = True
 
+            self.robot_controller.set_move_cmd(0.0, 0.0)
+            self.robot_controller.publish()
 
             if self.startup2 == True:
                 self.startup2 = False
@@ -243,21 +245,21 @@ class mazeNav(object):
             #    self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
             #    self.robot_controller.publish()
             #    print("correcting")
-            elif round(abs(self.yaw), 1) % 1.575 >= 0.035:
+            elif round(abs(self.yaw), 1) % 1.575 > 0.05 and round(abs(self.yaw), 1) % 1.575 < 1.52:
                 print(round(abs(self.yaw), 1) % 1.575)
-                while round(abs(self.yaw), 1) % 1.575 >= 0.035:
-                    if round(abs(self.yaw), 1) % 1.575 <= 0.785:
+                while round(abs(self.yaw), 1) % 1.575 > 0.05 and round(abs(self.yaw), 1) % 1.575 < 1.52:
+                    if round(abs(self.yaw), 1) % 1.575 < 0.785:
                         fwd_vel = 0.0
-                        ang_vel = -0.01 #turn right
+                        ang_vel = -0.1 #turn right
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
                     else:
                         fwd_vel = 0.0
-                        ang_vel = 0.01 #turn left
+                        ang_vel = 0.1 #turn left
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
-                #self.robot_controller.set_move_cmd(0.0, 0.0)
-                #self.robot_controller.publish()
+                    self.robot_controller.set_move_cmd(0.0, 0.0)
+                    self.robot_controller.publish()
             else:
                 fwd_vel = 0.2
                 ang_vel = 0.0
