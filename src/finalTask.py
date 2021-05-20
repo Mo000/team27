@@ -257,6 +257,7 @@ class finalTask(object):
                     if self.lidar['closest'] <= 0.3 and self.lidar['closest angle'] > 270:
                         ang_vel = 0.5
                         fwd_vel = 0.0
+                    # slow robot down when its close to an object:
                     if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] > 270:
                         fwd_vel = 0.1
                     if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] < 90:
