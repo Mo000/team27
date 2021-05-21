@@ -180,9 +180,6 @@ class finalTask(object):
         # Angle of closest object
         self.lidar['closest angle']=raw_data.argmin()
 
-    def locate(self):
-        currentLocation = (self.robot_odom.posx, self.robot_odom.posy)
-
     def driftAngle(self, speed):
         fwd_vel = speed
         normalized = False
@@ -340,9 +337,8 @@ class finalTask(object):
                 inTheMaze = True
                 deadEndx = 0
                 deadEndy = 0
+                global locationCount
                 locationCount = 0
-                locationListx = []
-                locationListy = []
 
                 while inTheMaze:
                     self.rate.sleep()
@@ -363,11 +359,11 @@ class finalTask(object):
                     if self.lidar['range'] <= 0.35:
                         forwardSensor = True
                     if self.lidar['range'] >= 0.4:
-                        speed = 1.4
+                        speed = 1.0
                     if self.lidar['range'] >= 0.5:
-                        speed = 1.5
+                        speed = 1.8
                     if self.lidar['range'] >= 0.6:
-                        speed = 2
+                        speed = 2.4
                     if self.lidar['range'] >= 0.8:
                         speed = 2.6
                     if self.lidar['range fr'] <= 0.45:
@@ -380,23 +376,6 @@ class finalTask(object):
                     self.driftAngle(fwd_vel)
                     convertedAngle = self.robot_odom.yaw + 180
                     nearestAngle = round(convertedAngle/90)*90
-
-                    #if locationCount == 50:
-                    #    locationListx = locationListx + [self.robot_odom.posx]
-                    #    locationListy = locationListy + [self.robot_odom.posy]
-
-                    if locationCount > 100:
-                        print("blam")
-                        #topL = (min(locationListx), max(locationListy))
-                        #topR = (max(locationListx), max(locationListy))
-                        #bottomL = (min(locationListx), min(locationListy))
-                        #bottomR = (max(locationListx), min(locationListy))
-
-                        if locationcounter % 20 == 0:
-                            if not leftSensor:
-                                self.turn(1.5, nearestAngle)
-                            elif not rightSensor:
-                                self.turn(-1.5, nearestAngle)
 
                     if self.lidar['range quad1']> 0.5 and self.lidar['range quad2']> 0.5 and self.lidar['range quad3']> 0.5 and self.lidar['range quad4']> 0.5:
                         inTheMaze = False
@@ -462,7 +441,10 @@ class finalTask(object):
                             self.turnFourtyFive(1.5, nearestAngle)
                             turned = True
                             self.diagonalTurn += 1
-                    while self.diagonalTurn == 1 and not self.ctrl_c:
+                    while self.diagonalTurn == 1 and not self.ctrl_c and inTheMaze:
+                        if self.lidar['range quad1']> 0.5 and self.lidar['range quad2']> 0.5 and self.lidar['range quad3']> 0.5 and self.lidar['range quad4']> 0.5:
+                            inTheMaze = False
+                        locationCount += 1
                         fwd_vel = 0.15
                         ang_vel = 0.0
                         kp = 0.01
@@ -470,20 +452,41 @@ class finalTask(object):
                         max_ang = 305
                         rightSensor = False
                         leftSensor = False
+                        if not rightSensor and not leftSensor and forwardSensor:
+                            #TJunction
+                            print("T Junction")
+                            if self.robot_odom.yaw > 225 and self.robot_odom.yaw <= 315:
+                                if self.robot_odom.posy > homePositiony:
+                                    self.turn(1.5, nearestAngle)
+                                    turned = True
+                                else:
+                                    self.turn(-1.5, nearestAngle)
+                                    turned = True
+                            elif self.robot_odom.yaw > 45 and self.robot_odom.yaw <= 135:
+                                if self.robot_odom.posy > homePositiony:
+                                    self.turn(-1.5, nearestAngle)
+                                    turned = True
+                                else:
+                                    self.turn(1.5, nearestAngle)
+                                    turned = True
+                            elif self.robot_odom.yaw < 45 and self.robot_odom.yaw > 315:
+                                if self.robot_odom.posx > homePositionx:
+                                    self.turn(-1.5, nearestAngle)
+                                    turned = True
+                                else:
+                                    self.turn(1.5, nearestAngle)
+                                    turned = True
+                            else:
+                                if self.robot_odom.posx > homePositionx:
+                                    self.turn(1.5, nearestAngle)
+                                    turned = True
+                                else:
+                                    self.turn(-1.5, nearestAngle)
+                                    turned = True
                         if self.lidar['range right'] <= 0.8:
                             rightSensor = True
                         if self.lidar['range left'] <= 0.8:
                             leftSensor = True
-
-                        # robot rotation when blobs detected:
-                        # if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.4:
-                        #     y_error = 45 - self.lidar["closest"]
-                        #     ang_vel = -(kp * y_error)
-
-                        # if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.4:
-                        #     y_error = 315 - self.lidar["closest"]
-                        #     ang_vel = (kp * y_error)
-
                         # robot rotation when in a tight space:
                         if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
                             ang_vel = -0.5
@@ -503,14 +506,22 @@ class finalTask(object):
                             if not turned:
                                 self.turn(1.5, nearestAngle)
                                 turned = True
+                        if (self.robot_odom.posx-homePositionx) > 3 or (self.robot_odom.posx-homePositionx) <-3 or (self.robot_odom.posx-homePositiony) > 3 or (self.robot_odom.posx-homePositiony)< -3:
+                            print("checking")
+                            if not leftSensor:
+                                self.turn(1.5, nearestAngle)
+                            elif not rightSensor:
+                                self.turn(-1.5, nearestAngle)
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
+                        #print("in this loop")
 
                 if not inTheMaze:
                     stage = 5
 
             while stage ==5:
                 #Find Beacon
+                print("finding beacon")
                 self.rate.sleep()
                 startPosX = self.robot_odom.start_posx
                 startPosY = self.robot_odom.start_posy
