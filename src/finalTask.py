@@ -61,7 +61,7 @@ class finalTask(object):
         self.ctrl_c = False
         rospy.on_shutdown(self.shutdown_ops)
 
-        self.rate = rospy.Rate(10)
+        self.rate = rospy.Rate(30)
 
         self.m00 = 0
         self.m00_min = 100000
@@ -338,6 +338,11 @@ class finalTask(object):
                 self.rate.sleep()
                 #exploring the environment
                 inTheMaze = True
+                deadEndx = 0
+                deadEndy = 0
+                locationCount = 0
+                locationListx = []
+                locationListy = []
 
                 while inTheMaze:
                     self.rate.sleep()
@@ -347,8 +352,9 @@ class finalTask(object):
                     turned = False
                     frightSensor = False
                     fleftSensor = False
-                    speed = 0.75
-                    tJunction = False
+                    speed = 2.6
+
+                    locationCount += 1
 
                     if self.lidar['range right'] <= 0.8:
                         rightSensor = True
@@ -357,7 +363,7 @@ class finalTask(object):
                     if self.lidar['range'] <= 0.35:
                         forwardSensor = True
                     if self.lidar['range'] >= 0.4:
-                        speed = 1
+                        speed = 1.4
                     if self.lidar['range'] >= 0.5:
                         speed = 1.5
                     if self.lidar['range'] >= 0.6:
@@ -375,19 +381,38 @@ class finalTask(object):
                     convertedAngle = self.robot_odom.yaw + 180
                     nearestAngle = round(convertedAngle/90)*90
 
+                    #if locationCount == 50:
+                    #    locationListx = locationListx + [self.robot_odom.posx]
+                    #    locationListy = locationListy + [self.robot_odom.posy]
+
+                    if locationCount > 100:
+                        print("blam")
+                        #topL = (min(locationListx), max(locationListy))
+                        #topR = (max(locationListx), max(locationListy))
+                        #bottomL = (min(locationListx), min(locationListy))
+                        #bottomR = (max(locationListx), min(locationListy))
+
+                        if locationcounter % 20 == 0:
+                            if not leftSensor:
+                                self.turn(1.5, nearestAngle)
+                            elif not rightSensor:
+                                self.turn(-1.5, nearestAngle)
+
                     if self.lidar['range quad1']> 0.5 and self.lidar['range quad2']> 0.5 and self.lidar['range quad3']> 0.5 and self.lidar['range quad4']> 0.5:
                         inTheMaze = False
 
                     if self.lidar["range"] <= 0.4 and self.lidar["range thin left"] <= 0.3 and self.lidar["range thin right"] <= 0.3:
                        print("turn 180")
+                       deadEndx = self.robot_odom.posx
+                       deadEndy = self.robot_odom.posy
                        self.deadEnd()
                     if not forwardSensor:
                         turned = False
                         fwd_vel = 0.1 * speed
                         self.driftAngle(fwd_vel)
-                    elif not rightSensor and not leftSensor:
+                    elif not frightSensor and not fleftSensor:
                         #TJunction
-                        #if self.tJunction == False:
+                        print("T Junction")
                         if self.robot_odom.yaw > 225 and self.robot_odom.yaw <= 315:
                             if self.robot_odom.posy > homePositiony:
                                 self.turn(1.5, nearestAngle)
@@ -416,7 +441,7 @@ class finalTask(object):
                             else:
                                 self.turn(-1.5, nearestAngle)
                                 turned = True
-                        self.tJunction = True
+                        #self.tJunction = True
                     elif not rightSensor:
                         if not turned:
                             self.turn(-1.5, nearestAngle)
@@ -486,7 +511,80 @@ class finalTask(object):
 
             while stage ==5:
                 #Find Beacon
-                print("escaped the maze, no code here yet")
+                self.rate.sleep()
+                startPosX = self.robot_odom.start_posx
+                startPosY = self.robot_odom.start_posy
+                currentPosX = self.robot_odom.posx
+                currentPosY = self.robot_odom.posy
+                currentRotation = self.robot_odom.yaw + 180
+
+                blobSearched = False
+                self.stopCounter +=1
+                if self.stopCounter == 200:
+                    blobSearched = self.searching()
+                    facingStartZone = self.isFacingStartZone()
+                    if blobSearched:
+                        print("BEACON DETECTED: Beaconing initiated")
+                        stage = 7
+                    self.stopCounter = 0
+                else:
+                    fwd_vel = 0.2
+                    ang_vel = 0.0
+                    if self.lidar['closest'] > 0.42:
+                        fwd_vel = 0.2
+
+                    if self.lidar['closest'] < 0.42:
+                        fwd_vel = 0.15
+
+                    # robot rotation when in a tight space:
+                    if self.lidar['closest'] <= 0.32 and (self.lidar['closest angle'] <= 45 or self.lidar['closest angle'] >= 315):
+                        if self.lidar['range thin left'] < self.lidar['range thin right']:
+                            ang_vel = -0.5
+                            fwd_vel = 0.0
+                        else:
+                            ang_vel = 0.5
+                            fwd_vel = 0.0
+                    elif self.lidar["closest"] <= 0.32 and self.lidar["closest angle"] < 90:
+                        ang_vel = -0.5
+                        fwd_vel = 0.0
+                    elif self.lidar['closest'] <= 0.32 and self.lidar['closest angle'] > 270:
+                        ang_vel = 0.5
+                        fwd_vel = 0.0
+                    if self.m00 > self.m00_min:
+                        self.stopCounter -=1
+                        facingStartZone = self.isFacingStartZone()
+                        # blob detected
+                        print("BEACON DETECTED: Beaconing initiated")
+                        if self.cy >= 560-20 and self.cy <= 560+20:
+                            stage = 7
+                        elif self.cy <= 560:
+                            fwd_vel = 0.15
+                            ang_vel = 0
+                            if self.cy >= 560-350 and self.cy < 560:
+                                if self.lidar['range middle right'] > 0.1:
+                                    ang_vel = -0.35
+                                else:
+                                    ang_vel = 0.1
+                            elif self.cy < 560-350:
+                                ang_vel = 0.1
+                            if self.lidar["big range"] < 0.5:
+                                self.robot_controller.stop()
+                                stage = 9
+                        elif self.cy >= 560:
+                            fwd_vel = 0.15
+                            ang_vel = 0
+                            if self.cy <= 560+350 and self.cy > 560:
+                                if self.lidar['range middle left'] > 0.1:
+                                    ang_vel = 0.35
+                                else:
+                                    ang_vel = -0.1
+                            elif self.cy > 560+350:
+                                ang_vel = -0.1
+                            if self.lidar["big range"] < 0.5:
+                                self.robot_controller.stop()
+                                stage = 9
+                self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
+                self.robot_controller.publish()
 
             while stage == 7:
                 self.rate.sleep()
@@ -509,11 +607,13 @@ class finalTask(object):
                     stage = 6
                 self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                 self.robot_controller.publish()
+
             while stage == 8:
                 self.robot_controller.stop()
                 self.robot_controller.publish()
                 self.rate.sleep()
                 print("FINAL CHALLENGE COMPLETE: The robot has now stopped.")
+
             while stage == 9:
                 fwd_vel = 0
                 if self.cy < 560-20:
