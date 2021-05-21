@@ -104,8 +104,18 @@ class finalTask(object):
         # Populate masks array with masks for each colour
         for i in range(len(self.colours)):
             self.masks[i] = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
-        m = cv2.moments(self.masks[self.colour])
-
+        
+        global colour_mask
+        for i in range(len(self.colours)):
+            if i == 0:
+                colour_mask = cv2.inRange(hsv_img, self.lower[i], self.upper[i])
+            else:
+                colour_mask = colour_mask + cv2.inRange(hsv_img, self.lower[i], self.upper[i])
+        mazeStart = False
+        if not mazeStart:
+            m = cv2.moments(self.masks[self.colour])
+        else:
+            m = cv2.moments(colour_mask)
         self.m00 = m['m00']
         self.cy = m['m10'] / (m['m00'] + 1e-5)
         cv2.circle(crop_img, (int(self.cy), 200), 10, (0, 0, 255), 2)
@@ -266,6 +276,7 @@ class finalTask(object):
 
     def main(self):
         stage = 1
+        mazeStart = False
         while not self.ctrl_c:
             #look at the start box colour
             while stage == 1:
@@ -314,9 +325,9 @@ class finalTask(object):
             while stage == 4:
                 self.rate.sleep()
                 #exploring the environment
-                beaconFound = False
+                mazeComplete = False
 
-                while not beaconFound:
+                while not mazeComplete:
                     self.rate.sleep()
                     forwardSensor = False
                     rightSensor = False
@@ -383,6 +394,7 @@ class finalTask(object):
                             turned = True
                             self.diagonalTurn += 1
                     while self.diagonalTurn == 1 and not self.ctrl_c:
+                        mazeStart = True
                         fwd_vel = 0.15
                         ang_vel = 0.0
                         kp = 0.01
@@ -433,12 +445,21 @@ class finalTask(object):
                                 turned = True 
                         if self.lidar['range'] > 0.8 and self.lidar['range right'] > 0.8:
                             self.robot_controller.stop()
+                        if self.m00 > self.m00_min:
+                            if self.cy >= 560-100 and self.cy <= 560+100:
+                                mazeComplete = True
+                                mazeStart = False
+                            if self.cy > 560+100:
+                                fwd_vel = 0.1
+                                ang_vel = -0.5
+                            if self.cy < 560-100:
+                                fwd_vel = 0.1
+                                ang_vel = 0.5
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
-                        if self.m00 > self.m00_min:
-                            beaconFound
+                        
 
-                if beaconFound:
+                if mazeComplete:
                     print("BEACON DETECTED: Beaconing initiated")
                     stage = 7
 
