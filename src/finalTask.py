@@ -506,7 +506,7 @@ class finalTask(object):
                             if not turned:
                                 self.turn(1.5, nearestAngle)
                                 turned = True
-                        if (self.robot_odom.posx-homePositionx) > 3 or (self.robot_odom.posx-homePositionx) <-3 or (self.robot_odom.posx-homePositiony) > 3 or (self.robot_odom.posx-homePositiony)< -3:
+                        if (self.robot_odom.posx-homePositionx) > 3 or (self.robot_odom.posx-homePositionx) <-3 or (self.robot_odom.posy-homePositiony) > 3 or (self.robot_odom.posy-homePositiony)< -3:
                             print("checking")
                             if not leftSensor:
                                 self.turn(1.5, nearestAngle)
@@ -514,7 +514,6 @@ class finalTask(object):
                                 self.turn(-1.5, nearestAngle)
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
-                        #print("in this loop")
 
                 if not inTheMaze:
                     stage = 5
