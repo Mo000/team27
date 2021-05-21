@@ -383,7 +383,6 @@ class finalTask(object):
                             turned = True
                             self.diagonalTurn += 1
                     while self.diagonalTurn == 1 and not self.ctrl_c:
-                        print("Left: " + str(self.lidar['range left']))
                         fwd_vel = 0.15
                         ang_vel = 0.0
                         kp = 0.01
@@ -396,14 +395,14 @@ class finalTask(object):
                         if self.lidar['range left'] <= 0.8:
                             leftSensor = True
 
-                        # robot rotation when blobs detected:
-                        # if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.4:
-                        #     y_error = 45 - self.lidar["closest"]
-                        #     ang_vel = -(kp * y_error)
+                       # robot rotation when blobs detected:
+                        if self.lidar["closest angle"] < 45 and self.lidar["closest angle"] >= 0 and self.lidar['closest'] > 0.4:
+                            y_error = 45 - self.lidar["closest"]
+                            ang_vel = -(kp * y_error)
 
-                        # if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.4:
-                        #     y_error = 315 - self.lidar["closest"]
-                        #     ang_vel = (kp * y_error)
+                        if self.lidar["closest angle"] <= 360 and self.lidar["closest angle"] > 315 and self.lidar['closest'] > 0.4:
+                            y_error = 315 - self.lidar["closest"]
+                            ang_vel = (kp * y_error)
         
                         # robot rotation when in a tight space:
                         if self.lidar["closest"] <= 0.3 and self.lidar["closest angle"] < 90:
@@ -420,12 +419,24 @@ class finalTask(object):
 
                         if self.lidar['closest'] > 0.3 and self.lidar['closest'] <= 0.45 and self.lidar['closest angle'] < 90:
                             fwd_vel = 0.1
-                        if rightSensor and leftSensor and forwardSensor:
+                        if not rightSensor:
+                            if not turned:
+                                self.turn(-1.5, nearestAngle)
+                                turned = True
+                        if rightSensor and not leftSensor and forwardSensor:
                             if not turned:
                                 self.turn(1.5, nearestAngle)
-                                turned = True
+                                turned = True 
+                        if not rightSensor and leftSensor and forwardSensor:
+                            if not turned:
+                                self.turn(1.5, nearestAngle)
+                                turned = True 
+                        if self.lidar['range'] > 0.8 and self.lidar['range right'] > 0.8:
+                            self.robot_controller.stop()
                         self.robot_controller.set_move_cmd(fwd_vel, ang_vel)
                         self.robot_controller.publish()
+                        if self.m00 > self.m00_min:
+                            beaconFound
 
                 if beaconFound:
                     print("BEACON DETECTED: Beaconing initiated")
