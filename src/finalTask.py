@@ -483,6 +483,9 @@ class finalTask(object):
                                 else:
                                     self.turn(-1.5, nearestAngle)
                                     turned = True
+                        if self.lidar["range"] <= 0.4 and self.lidar["range thin left"] <= 0.3 and self.lidar["range thin right"] <= 0.3:
+                           print("turn 180")
+                           self.deadEnd()
                         if self.lidar['range right'] <= 0.8:
                             rightSensor = True
                         if self.lidar['range left'] <= 0.8:
