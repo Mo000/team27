@@ -1,0 +1,4 @@
+<launch>
+   <node pkg="team27" type="finalTask.py" name="exploring"  output="screen">
+   </node>
+ </launch>
